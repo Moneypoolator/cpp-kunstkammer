@@ -1,0 +1,10 @@
+{
+    "schedule": {
+        "parent": "48961",
+        "responsible": "anarolin@atollis.com",
+        "tasks": [
+            { "type": "delivery", "size": 4, "title": "Название задачи 1 " },
+            { "type": "delivery", "size": 4, "title": "Название задачи 2 " }
+        ]
+    }
+}

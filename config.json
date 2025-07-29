@@ -1,0 +1,12 @@
+{
+    "Token": "9ecb4b54-508a-4d1e-ad99-c1c4a04847bb",
+    "BaseURL": "https://kaiten.norsoft.ru/api/latest",
+    "LogLevel": "debug",
+    "BoardID": "192",
+    "ColumnID": "776",
+    "LaneID": "1275",
+    "Tags": [
+        "tag1",
+        "tag2"
+    ]
+} 
