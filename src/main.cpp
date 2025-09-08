@@ -4,11 +4,16 @@
 #include "nlohmann/json.hpp"
 #include "config.hpp"
 #include "http_client.hpp"
+#include "modes.hpp"
 
 #include <boost/asio/ssl.hpp>
 
 namespace po = boost::program_options;
 namespace ssl = boost::asio::ssl;
+
+bool option_exists(const po::variables_map& vm, const std::string& option) {
+    return vm.count(option) > 0;
+}
 
 int main(int argc, char** argv) {
     po::options_description desc("Allowed options");
@@ -16,34 +21,45 @@ int main(int argc, char** argv) {
         ("help,h", "produce help message")
         ("tasks", po::value<std::string>(), "Path to the tasks JSON file for task creation mode")
         ("report", po::value<std::string>(), "Path to the report JSON file for report import mode")
+        ("get-card", po::value<std::string>(), "Card number to retrieve (get-card mode)")
+        ("cards-list", "List cards (cards-list mode)")
+        ("create-card", po::value<std::string>(), "Create a card with given title (uses ColumnID/LaneID from config)")
+        ("type", po::value<std::string>()->default_value(""), "Card type for create-card")
+        ("size", po::value<int>()->default_value(0), "Card size for create-card")
+        ("tags", po::value<std::string>()->default_value(""), "Comma-separated tags for create-card")
         ("config", po::value<std::string>()->default_value("config.json"), "Path to the configuration file (optional, default: config.json)");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
-    if (vm.count("help")) {
+    if (option_exists(vm, "help")) {
         std::cout << desc << "\n";
         return 1;
     }
 
-    if (!vm.count("tasks") && !vm.count("report")) {
+    if (!option_exists(vm, "tasks") 
+        && !option_exists(vm, "report") 
+        && !option_exists(vm, "get-card") 
+        && !option_exists(vm, "cards-list") 
+        && !option_exists(vm, "create-card")) 
+    {
         std::cerr << "Wrong command line arguments" << std::endl;
         std::cout << desc << "\n";
         return 1;
     }
 
-    std::string configFile = vm["config"].as<std::string>();
+    std::string config_file = vm["config"].as<std::string>();
     
     Config config;
-    if (!configFile.empty()) {
-        std::ifstream f(configFile);
+    if (!config_file.empty()) {
+        std::ifstream f(config_file);
         if (f) {
             try {
                 nlohmann::json data = nlohmann::json::parse(f);
                 config = data.get<Config>();
                 
-                std::cout << "Config loaded from " << configFile << std::endl;
+                std::cout << "Config loaded from " << config_file << std::endl;
                 std::cout << "Token: " << config.token << std::endl;
                 std::cout << "BaseURL: " << config.baseUrl << std::endl;
 
@@ -52,7 +68,7 @@ int main(int argc, char** argv) {
                 return 1;
             }
         } else {
-            std::cerr << "Could not open config file: " << configFile << std::endl;
+            std::cerr << "Could not open config file: " << config_file << std::endl;
             return 1;
         }
     } else {
@@ -60,11 +76,11 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (vm.count("tasks")) {
+    if (option_exists(vm, "tasks")) {
         std::cout << "Tasks file: " << vm["tasks"].as<std::string>() << std::endl;
     }
 
-    if (vm.count("report")) {
+    if (option_exists(vm, "report")) {
         std::cout << "Report file: " << vm["report"].as<std::string>() << std::endl;
     }
 
@@ -73,16 +89,17 @@ int main(int argc, char** argv) {
     // ctx.set_verify_mode(ssl::verify_peer);
     ctx.set_verify_mode(ssl::verify_none); // Disable SSL verification for testing
 
-    nlohmann::json card_data = {
-        {"title", "Test from C++"},
-        {"column_id", std::stoi(config.columnId)},
-        {"lane_id", std::stoi(config.laneId)}
-    };
+    //
 
     // Parse host and path from config.baseUrl
     std::string base_url = config.baseUrl;
-    std::string host, api_path;
-    if (base_url.rfind("https://", 0) == 0) base_url = base_url.substr(8);
+    std::string host;
+    std::string api_path;
+
+    if (base_url.rfind("https://", 0) == 0) {
+        base_url = base_url.substr(8); 
+    }
+
     size_t slash_pos = base_url.find('/');
     if (slash_pos != std::string::npos) {
         host = base_url.substr(0, slash_pos);
@@ -98,82 +115,38 @@ int main(int argc, char** argv) {
     std::cout << "Path: " << cards_path << std::endl;
 
     net::io_context ioc;
-    HttpClient client(ioc, ctx);
+    Http_client client(ioc, ctx);
 
-    if (vm.count("tasks")) {
-        std::string tasksFile = vm["tasks"].as<std::string>();
-        // Load tasks from tasks.json
-        std::ifstream tasks_file(tasksFile);
-        if (!tasks_file) {
-            std::cerr << "Could not open tasks file: " << tasksFile << std::endl;
-            return 1;
-        }
-        nlohmann::json tasks_json;
-        try {
-            tasks_file >> tasks_json;
-        } catch (const std::exception& e) {
-            std::cerr << "Failed to parse tasks JSON: " << e.what() << std::endl;
-            return 1;
-        }
-        if (!tasks_json.contains("schedule") || !tasks_json["schedule"].contains("tasks")) {
-            std::cerr << "Invalid tasks JSON structure." << std::endl;
-            return 1;
-        }
-        auto& tasks = tasks_json["schedule"]["tasks"];
-        for (const auto& task : tasks) {
-            nlohmann::json card_data = {
-                {"title", task.value("title", "")},
-                {"column_id", std::stoi(config.columnId)},
-                {"lane_id", std::stoi(config.laneId)},
-                {"type", task.value("type", "")},
-                {"size", task.value("size", 0)}
-            };
-            std::cout << "Creating card: " << card_data.dump() << std::endl;
-            auto [status, response] = client.post(
-                host,
-                "443",
-                cards_path,
-                card_data.dump(),
-                config.token
-            );
-            std::cout << "POST HTTP status: " << status << std::endl;
-            std::cout << "POST response: " << response << std::endl;
-            if (status == 200 || status == 201) {
-                try {
-                    auto resp_json = nlohmann::json::parse(response);
-                    if (resp_json.contains("id")) {
-                        std::cout << "Created card ID: " << resp_json["id"] << std::endl;
-                    }
-                } catch (const std::exception& e) {
-                    std::cerr << "Failed to parse response JSON: " << e.what() << std::endl;
-                }
-            } else {
-                std::cerr << "Error from Kaiten API: " << response << std::endl;
-            }
-        }
+    if (option_exists(vm, "tasks")) {
+        std::string tasks_file_name = vm["tasks"].as<std::string>();
+        handle_tasks(client, host, api_path, config.token, config, tasks_file_name);
     }
 
-    bool get_card_mode = false;
-    if (get_card_mode) {
-        // Example: GET all cards after creating one
-        auto [get_status, get_response] = client.get(
-            host,
-            "443",
-            cards_path, // This will be /api/latest/cards
-            config.token
-        );
-        std::cout << "GET HTTP status: " << get_status << std::endl;
-        std::cout << "GET response: " << get_response << std::endl;
-        if (get_status == 200) {
-            try {
-                auto get_json = nlohmann::json::parse(get_response);
-                std::cout << "GET response JSON parsed successfully." << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "Failed to parse GET response JSON: " << e.what() << std::endl;
+    if (option_exists(vm, "create-card")) {
+        std::string title = vm["create-card"].as<std::string>();
+        std::string type = vm["type"].as<std::string>();
+        int size = vm["size"].as<int>();
+        std::string tags_csv = vm["tags"].as<std::string>();
+        std::vector<std::string> tags;
+        if (!tags_csv.empty()) {
+            std::stringstream ss(tags_csv);
+            std::string tag;
+            while (std::getline(ss, tag, ',')) {
+                if (!tag.empty()) {
+                    tags.push_back(tag);
+                }
             }
-        } else {
-            std::cerr << "GET error or non-200 status." << std::endl;
         }
+        handle_create_card(client, host, api_path, config.token, config, title, type, size, tags);
+    }
+
+    if (option_exists(vm, "get-card")) {
+        std::string card_number = vm["get-card"].as<std::string>();
+        handle_get_card(client, host, api_path, config.token, card_number);
+    }
+
+    if (option_exists(vm, "cards-list")) {
+        handle_cards_list(client, host, api_path, config.token);
     }
 
 

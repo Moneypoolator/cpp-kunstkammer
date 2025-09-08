@@ -1,0 +1,56 @@
+Checks: 'bugprone-*, 
+  clang-diagnostic-*, 
+  cppcoreguidelines-*, 
+  performance-*, 
+  misc-*,
+  modernize-*, 
+  readability-*,
+  google-explicit-constructor,
+
+  -bugprone-easily-swappable-parameters, 
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay, 
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-vararg,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-use-nodiscard,
+  -modernize-use-trailing-return-type,
+  -modernize-concat-nested-namespaces,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-suspicious-call-argument'
+
+# -bugprone-easily-swappable-parameters - чтобы не нужно было создавать струкртуру, чтобы использовать gc::...
+# -cppcoreguidelines-avoid-magic-numbers - спорные магические числа + использование в тестах
+# -cppcoreguidelines-non-private-member-variables-in-classes - коллбэки
+# -cppcoreguidelines-pro-bounds-array-to-pointer-decay - многочисленное использование в vi::...
+# -cppcoreguidelines-pro-bounds-pointer-arithmetic - многочисленное использование в vi::...
+# -cppcoreguidelines-pro-type-vararg - чтобы не отмечало использование LOG(...)
+# -misc-non-private-member-variables-in-classes - колдбэки, мб потом поправим
+# -modernize-use-nodiscard - синтаксический сахар, не всегда удобно
+# -modernize-use-trailing-return-type - бесовское
+# -modernize-concat-nested-namespaces - противоречит требованиям к оформлению namespace
+# -readability-magic-numbers - аналогично cppcoreguidelines-avoid-magic-numbers
+# -readability-named-parameter - не всегда удобно
+# -readability-identifier-length - не всегда удобно
+
+CheckOptions:
+    - { key: readability-identifier-naming.NamespaceCase,                     value: lower_case       }
+    - { key: readability-identifier-naming.ClassCase,                         value: Leading_upper_snake_case }
+    - { key: readability-identifier-naming.StructCase,                        value: Leading_upper_snake_case }
+    - { key: readability-identifier-naming.TemplateParameterCase,             value: Camel_Snake_Case }
+    - { key: readability-identifier-naming.FunctionCase,                      value: lower_case       }
+    - { key: readability-identifier-naming.VariableCase,                      value: lower_case       }
+    - { key: readability-identifier-naming.ClassMemberPrefix,                 value: _                }
+    - { key: readability-identifier-naming.PrivateMemberPrefix,               value: _                }
+    - { key: readability-identifier-naming.ProtectedMemberPrefix,             value: _                }
+    - { key: readability-identifier-naming.MacroDefinitionCase,               value: UPPER_CASE       }
+    - { key: readability-identifier-naming.EnumConstantCase,                  value: lower_case       }
+    - { key: readability-identifier-naming.ConstexprVariableCase,             value: lower_case       }
+    - { key: readability-identifier-naming.GlobalConstantCase,                value: lower_case       }
+    - { key: readability-identifier-naming.MemberConstantCase,                value: lower_case       }
+    - { key: readability-identifier-naming.StaticConstantCase,                value: lower_case       }
+    - { key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor, value: true             }
+FormatStyle: 'file'

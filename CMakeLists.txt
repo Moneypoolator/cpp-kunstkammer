@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Boost 1.71.0 REQUIRED COMPONENTS program_options system json beast)
 find_package(OpenSSL REQUIRED)
 
-add_executable(kunstkammer src/main.cpp src/http_client.cpp)
+add_executable(kunstkammer src/main.cpp src/http_client.cpp src/modes.cpp)
 
 target_include_directories(kunstkammer PRIVATE third_party)
 

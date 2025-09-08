@@ -15,7 +15,7 @@ struct Config {
     std::vector<std::string> tags;
 };
 
-void from_json(const nlohmann::json& j, Config& c) {
+inline void from_json(const nlohmann::json& j, Config& c) {
     j.at("Token").get_to(c.token);
     j.at("BaseURL").get_to(c.baseUrl);
     j.at("LogLevel").get_to(c.logLevel);
