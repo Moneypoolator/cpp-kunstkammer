@@ -1,92 +1,94 @@
 // card.cpp
 #include "card.hpp"
+#include "card_utils.hpp"
 #include <iostream>
 
-// Вспомогательная функция для безопасного получения значений с обработкой null
-template<typename T>
-T get_optional(const nlohmann::json& j, const std::string& key, const T& default_value) {
-    if (j.contains(key) && !j.at(key).is_null()) {
-        try {
-            return j.at(key).get<T>();
-        } catch (const nlohmann::json::type_error& e) {
-            std::cerr << "Warning: Type error for key '" << key << "': " << e.what() << std::endl;
-            return default_value;
-        } catch (...) {
-            return default_value;
-        }
-    }
-    return default_value;
-}
+// // Вспомогательная функция для безопасного получения значений с обработкой null
+// template<typename T>
+// T get_optional(const nlohmann::json& j, const std::string& key, const T& default_value) {
+//     if (j.contains(key) && !j.at(key).is_null()) {
+//         try {
+//             return j.at(key).get<T>();
+//         } catch (const nlohmann::json::type_error& e) {
+//             std::cerr << "Warning: Type error for key '" << key << "': " << e.what() << std::endl;
+//             return default_value;
+//         } catch (...) {
+//             return default_value;
+//         }
+//     }
+//     return default_value;
+// }
 
-// Специализация для std::string чтобы обрабатывать null как пустую строку
-template<>
-std::string get_optional<std::string>(const nlohmann::json& j, const std::string& key, const std::string& default_value) {
-    if (j.contains(key)) {
-        if (j.at(key).is_null()) {
-            return default_value;
-        }
-        try {
-            return j.at(key).get<std::string>();
-        } catch (...) {
-            return default_value;
-        }
-    }
-    return default_value;
-}
+// // Специализация для std::string чтобы обрабатывать null как пустую строку
+// template<>
+// std::string get_optional<std::string>(const nlohmann::json& j, const std::string& key, const std::string& default_value) {
+//     if (j.contains(key)) {
+//         if (j.at(key).is_null()) {
+//             return default_value;
+//         }
+//         try {
+//             return j.at(key).get<std::string>();
+//         } catch (...) {
+//             return default_value;
+//         }
+//     }
+//     return default_value;
+// }
 
-// Специализация для bool
-template<>
-bool get_optional<bool>(const nlohmann::json& j, const std::string& key, const bool& default_value) {
-    if (j.contains(key) && !j.at(key).is_null()) {
-        try {
-            return j.at(key).get<bool>();
-        } catch (...) {
-            return default_value;
-        }
-    }
-    return default_value;
-}
+// // Специализация для bool
+// template<>
+// bool get_optional<bool>(const nlohmann::json& j, const std::string& key, const bool& default_value) {
+//     if (j.contains(key) && !j.at(key).is_null()) {
+//         try {
+//             return j.at(key).get<bool>();
+//         } catch (...) {
+//             return default_value;
+//         }
+//     }
+//     return default_value;
+// }
 
-// Функция для безопасного получения числовых значений с обработкой null и строк
-template<typename T>
-T get_numeric_optional(const nlohmann::json& j, const std::string& key, const T& default_value) {
-    if (j.contains(key) && !j.at(key).is_null()) {
-        try {
-            if (j.at(key).is_number()) {
-                return j.at(key).get<T>();
-            } else if (j.at(key).is_string()) {
-                // Попробуем преобразовать строку в число
-                std::string str_val = j.at(key).get<std::string>();
-                if constexpr (std::is_integral_v<T>) {
-                    return static_cast<T>(std::stoll(str_val));
-                } else if constexpr (std::is_floating_point_v<T>) {
-                    return static_cast<T>(std::stod(str_val));
-                }
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Warning: Cannot convert '" << key << "' to number: " << e.what() << std::endl;
-        }
-    }
-    return default_value;
-}
+// // Функция для безопасного получения числовых значений с обработкой null и строк
+// template<typename T>
+// T get_numeric_optional(const nlohmann::json& j, const std::string& key, const T& default_value) {
+//     if (j.contains(key) && !j.at(key).is_null()) {
+//         try {
+//             if (j.at(key).is_number()) {
+//                 return j.at(key).get<T>();
+//             } else if (j.at(key).is_string()) {
+//                 // Попробуем преобразовать строку в число
+//                 std::string str_val = j.at(key).get<std::string>();
+//                 if constexpr (std::is_integral_v<T>) {
+//                     return static_cast<T>(std::stoll(str_val));
+//                 } else if constexpr (std::is_floating_point_v<T>) {
+//                     return static_cast<T>(std::stod(str_val));
+//                 }
+//             }
+//         } catch (const std::exception& e) {
+//             std::cerr << "Warning: Cannot convert '" << key << "' to number: " << e.what() << std::endl;
+//         }
+//     }
+//     return default_value;
+// }
 
-// Функция для безопасного получения int64_t
-std::int64_t get_int64_optional(const nlohmann::json& j, const std::string& key, std::int64_t default_value) {
-    return get_numeric_optional<std::int64_t>(j, key, default_value);
-}
+// // Функция для безопасного получения int64_t
+// std::int64_t get_int64_optional(const nlohmann::json& j, const std::string& key, std::int64_t default_value) {
+//     return get_numeric_optional<std::int64_t>(j, key, default_value);
+// }
 
-// Функция для безопасного получения int
-int get_int_optional(const nlohmann::json& j, const std::string& key, int default_value) {
-    return get_numeric_optional<int>(j, key, default_value);
-}
+// // Функция для безопасного получения int
+// int get_int_optional(const nlohmann::json& j, const std::string& key, int default_value) {
+//     return get_numeric_optional<int>(j, key, default_value);
+// }
 
-// Функция для безопасного получения double
-double get_double_optional(const nlohmann::json& j, const std::string& key, double default_value) {
-    return get_numeric_optional<double>(j, key, default_value);
-}
+// // Функция для безопасного получения double
+// double get_double_optional(const nlohmann::json& j, const std::string& key, double default_value) {
+//     return get_numeric_optional<double>(j, key, default_value);
+// }
 
 // Реализации десериализации
-void from_json(const nlohmann::json& j, User& u) {
+void from_json(const nlohmann::json& j, User& u)
+{
     u.id = get_int64_optional(j, "id", 0LL);
     u.uid = get_optional(j, "uid", std::string());
     u.full_name = get_optional(j, "full_name", std::string());
@@ -101,7 +103,7 @@ void from_json(const nlohmann::json& j, User& u) {
     u.ui_version = get_int_optional(j, "ui_version", 0);
     u.activated = get_optional(j, "activated", false);
     u.virtual_user = get_optional(j, "virtual", false);
-    
+
     if (j.contains("card_id") && !j.at("card_id").is_null()) {
         u.card_id = get_int64_optional(j, "card_id", 0LL);
     }
@@ -110,7 +112,8 @@ void from_json(const nlohmann::json& j, User& u) {
     }
 }
 
-void from_json(const nlohmann::json& j, Board& b) {
+void from_json(const nlohmann::json& j, Board& b)
+{
     b.id = get_int64_optional(j, "id", 0LL);
     b.title = get_optional(j, "title", std::string());
     if (j.contains("external_id") && !j.at("external_id").is_null()) {
@@ -118,7 +121,8 @@ void from_json(const nlohmann::json& j, Board& b) {
     }
 }
 
-void from_json(const nlohmann::json& j, Column& col) {
+void from_json(const nlohmann::json& j, Column& col)
+{
     col.id = get_int64_optional(j, "id", 0LL);
     col.title = get_optional(j, "title", std::string());
     col.uid = get_optional(j, "uid", std::string());
@@ -133,7 +137,8 @@ void from_json(const nlohmann::json& j, Column& col) {
     }
 }
 
-void from_json(const nlohmann::json& j, Lane& l) {
+void from_json(const nlohmann::json& j, Lane& l)
+{
     l.id = get_int64_optional(j, "id", 0LL);
     l.title = get_optional(j, "title", std::string());
     l.board_id = get_int64_optional(j, "board_id", 0LL);
@@ -147,7 +152,8 @@ void from_json(const nlohmann::json& j, Lane& l) {
     }
 }
 
-void from_json(const nlohmann::json& j, CardType& ct) {
+void from_json(const nlohmann::json& j, CardType& ct)
+{
     ct.id = get_int64_optional(j, "id", 0LL);
     ct.name = get_optional(j, "name", std::string());
     ct.letter = get_optional(j, "letter", std::string());
@@ -159,7 +165,8 @@ void from_json(const nlohmann::json& j, CardType& ct) {
     }
 }
 
-void from_json(const nlohmann::json& j, Tag& t) {
+void from_json(const nlohmann::json& j, Tag& t)
+{
     t.id = get_int64_optional(j, "id", 0LL);
     t.tag_id = get_int64_optional(j, "tag_id", 0LL);
     t.name = get_optional(j, "name", std::string());
@@ -169,7 +176,8 @@ void from_json(const nlohmann::json& j, Tag& t) {
     }
 }
 
-void from_json(const nlohmann::json& j, CardPermissions& cp) {
+void from_json(const nlohmann::json& j, CardPermissions& cp)
+{
     cp.comment = get_optional(j, "comment", false);
     cp.create = get_optional(j, "create", false);
     cp.delete_perm = get_optional(j, "delete", false);
@@ -180,19 +188,30 @@ void from_json(const nlohmann::json& j, CardPermissions& cp) {
     cp.update = get_optional(j, "update", false);
 }
 
-void from_json(const nlohmann::json& j, PathData::PathItem& pi) {
+void from_json(const nlohmann::json& j, PathData::PathItem& pi)
+{
     pi.id = get_int64_optional(j, "id", 0LL);
     pi.title = get_optional(j, "title", std::string());
 }
 
-void from_json(const nlohmann::json& j, PathData& pd) {
-    if (j.contains("board") && !j.at("board").is_null()) j.at("board").get_to(pd.board);
-    if (j.contains("column") && !j.at("column").is_null()) j.at("column").get_to(pd.column);
-    if (j.contains("lane") && !j.at("lane").is_null()) j.at("lane").get_to(pd.lane);
-    if (j.contains("space") && !j.at("space").is_null()) j.at("space").get_to(pd.space);
+void from_json(const nlohmann::json& j, PathData& pd)
+{
+    if (j.contains("board") && !j.at("board").is_null()) {
+        j.at("board").get_to(pd.board);
+    }
+    if (j.contains("column") && !j.at("column").is_null()) {
+        j.at("column").get_to(pd.column);
+    }
+    if (j.contains("lane") && !j.at("lane").is_null()) {
+        j.at("lane").get_to(pd.lane);
+    }
+    if (j.contains("space") && !j.at("space").is_null()) {
+        j.at("space").get_to(pd.space);
+    }
 }
 
-void from_json(const nlohmann::json& j, ParentCard& pc) {
+void from_json(const nlohmann::json& j, ParentCard& pc)
+{
     pc.id = get_int64_optional(j, "id", 0LL);
     pc.card_id = get_int64_optional(j, "card_id", 0LL);
     pc.title = get_optional(j, "title", std::string());
@@ -208,14 +227,26 @@ void from_json(const nlohmann::json& j, ParentCard& pc) {
     pc.size = get_int_optional(j, "size", 0);
     pc.children_count = get_int_optional(j, "children_count", 0);
     pc.children_done = get_int_optional(j, "children_done", 0);
-    
-    if (j.contains("created") && !j.at("created").is_null()) j.at("created").get_to(pc.created);
-    if (j.contains("updated") && !j.at("updated").is_null()) j.at("updated").get_to(pc.updated);
-    if (j.contains("column_changed_at") && !j.at("column_changed_at").is_null()) j.at("column_changed_at").get_to(pc.column_changed_at);
-    if (j.contains("lane_changed_at") && !j.at("lane_changed_at").is_null()) j.at("lane_changed_at").get_to(pc.lane_changed_at);
-    if (j.contains("last_moved_at") && !j.at("last_moved_at").is_null()) j.at("last_moved_at").get_to(pc.last_moved_at);
-    if (j.contains("last_moved_to_done_at") && !j.at("last_moved_to_done_at").is_null()) j.at("last_moved_to_done_at").get_to(pc.last_moved_to_done_at);
-    
+
+    if (j.contains("created") && !j.at("created").is_null()) {
+        j.at("created").get_to(pc.created);
+    }
+    if (j.contains("updated") && !j.at("updated").is_null()) {
+        j.at("updated").get_to(pc.updated);
+    }
+    if (j.contains("column_changed_at") && !j.at("column_changed_at").is_null()) {
+        j.at("column_changed_at").get_to(pc.column_changed_at);
+    }
+    if (j.contains("lane_changed_at") && !j.at("lane_changed_at").is_null()) {
+        j.at("lane_changed_at").get_to(pc.lane_changed_at);
+    }
+    if (j.contains("last_moved_at") && !j.at("last_moved_at").is_null()) {
+        j.at("last_moved_at").get_to(pc.last_moved_at);
+    }
+    if (j.contains("last_moved_to_done_at") && !j.at("last_moved_to_done_at").is_null()) {
+        j.at("last_moved_to_done_at").get_to(pc.last_moved_to_done_at);
+    }
+
     if (j.contains("owner_id") && !j.at("owner_id").is_null()) {
         pc.owner_id = get_int64_optional(j, "owner_id", 0LL);
     }
@@ -227,7 +258,8 @@ void from_json(const nlohmann::json& j, ParentCard& pc) {
     }
 }
 
-void from_json(const nlohmann::json& j, Card& c) {
+void from_json(const nlohmann::json& j, Card& c)
+{
     try {
         // Базовые поля
         c.id = get_int64_optional(j, "id", 0LL);
@@ -235,7 +267,7 @@ void from_json(const nlohmann::json& j, Card& c) {
         c.title = get_optional(j, "title", std::string());
         c.uid = get_optional(j, "uid", std::string());
         c.version = get_int_optional(j, "version", 0);
-        
+
         // Флаги состояния
         c.archived = get_optional(j, "archived", false);
         c.asap = get_optional(j, "asap", false);
@@ -249,7 +281,7 @@ void from_json(const nlohmann::json& j, Card& c) {
         c.locked = get_optional(j, "locked", false);
         c.public_card = get_optional(j, "public", false);
         c.sd_new_comment = get_optional(j, "sd_new_comment", false);
-        
+
         // ID связей
         c.board_id = get_int64_optional(j, "board_id", 0LL);
         c.column_id = get_int64_optional(j, "column_id", 0LL);
@@ -257,7 +289,7 @@ void from_json(const nlohmann::json& j, Card& c) {
         c.owner_id = get_int64_optional(j, "owner_id", 0LL);
         c.type_id = get_int64_optional(j, "type_id", 0LL);
         c.space_id = get_int64_optional(j, "space_id", 0LL);
-        
+
         // Опциональные ID
         if (j.contains("sprint_id") && !j.at("sprint_id").is_null()) {
             c.sprint_id = get_int64_optional(j, "sprint_id", 0LL);
@@ -271,12 +303,20 @@ void from_json(const nlohmann::json& j, Card& c) {
         if (j.contains("import_id") && !j.at("import_id").is_null()) {
             c.import_id = get_int64_optional(j, "import_id", 0LL);
         }
-        
+
         // Вложенные объекты
-        if (j.contains("board") && !j.at("board").is_null()) j.at("board").get_to(c.board);
-        if (j.contains("column") && !j.at("column").is_null()) j.at("column").get_to(c.column);
-        if (j.contains("lane") && !j.at("lane").is_null()) j.at("lane").get_to(c.lane);
-        if (j.contains("owner") && !j.at("owner").is_null()) j.at("owner").get_to(c.owner);
+        if (j.contains("board") && !j.at("board").is_null()) {
+            j.at("board").get_to(c.board);
+        }
+        if (j.contains("column") && !j.at("column").is_null()) {
+            j.at("column").get_to(c.column);
+        }
+        if (j.contains("lane") && !j.at("lane").is_null()) {
+            j.at("lane").get_to(c.lane);
+        }
+        if (j.contains("owner") && !j.at("owner").is_null()) {
+            j.at("owner").get_to(c.owner);
+        }
         if (j.contains("type") && !j.at("type").is_null() && j.at("type").is_object()) {
             j.at("type").get_to(c.card_type);
             c.type = c.card_type.name; // для обратной совместимости
@@ -285,21 +325,41 @@ void from_json(const nlohmann::json& j, Card& c) {
             j.at("card_permissions").get_to(c.permissions);
         }
         if (j.contains("path_data") && !j.at("path_data").is_null()) {
-            //j.at("path_data").get_to(c.path_data);
+            // j.at("path_data").get_to(c.path_data);
         }
-        
+
         // Даты
-        if (j.contains("created") && !j.at("created").is_null()) j.at("created").get_to(c.created);
-        if (j.contains("updated") && !j.at("updated").is_null()) j.at("updated").get_to(c.updated);
-        if (j.contains("column_changed_at") && !j.at("column_changed_at").is_null()) j.at("column_changed_at").get_to(c.column_changed_at);
-        if (j.contains("lane_changed_at") && !j.at("lane_changed_at").is_null()) j.at("lane_changed_at").get_to(c.lane_changed_at);
-        if (j.contains("last_moved_at") && !j.at("last_moved_at").is_null()) j.at("last_moved_at").get_to(c.last_moved_at);
-        if (j.contains("last_moved_to_done_at") && !j.at("last_moved_to_done_at").is_null()) j.at("last_moved_to_done_at").get_to(c.last_moved_to_done_at);
-        if (j.contains("first_moved_to_in_progress_at") && !j.at("first_moved_to_in_progress_at").is_null()) j.at("first_moved_to_in_progress_at").get_to(c.first_moved_to_in_progress_at);
-        if (j.contains("completed_at") && !j.at("completed_at").is_null()) j.at("completed_at").get_to(c.completed_at);
-        if (j.contains("counters_recalculated_at") && !j.at("counters_recalculated_at").is_null()) j.at("counters_recalculated_at").get_to(c.counters_recalculated_at);
-        if (j.contains("comment_last_added_at") && !j.at("comment_last_added_at").is_null()) j.at("comment_last_added_at").get_to(c.comment_last_added_at);
-        
+        if (j.contains("created") && !j.at("created").is_null()) {
+            j.at("created").get_to(c.created);
+        }
+        if (j.contains("updated") && !j.at("updated").is_null()) {
+            j.at("updated").get_to(c.updated);
+        }
+        if (j.contains("column_changed_at") && !j.at("column_changed_at").is_null()) {
+            j.at("column_changed_at").get_to(c.column_changed_at);
+        }
+        if (j.contains("lane_changed_at") && !j.at("lane_changed_at").is_null()) {
+            j.at("lane_changed_at").get_to(c.lane_changed_at);
+        }
+        if (j.contains("last_moved_at") && !j.at("last_moved_at").is_null()) {
+            j.at("last_moved_at").get_to(c.last_moved_at);
+        }
+        if (j.contains("last_moved_to_done_at") && !j.at("last_moved_to_done_at").is_null()) {
+            j.at("last_moved_to_done_at").get_to(c.last_moved_to_done_at);
+        }
+        if (j.contains("first_moved_to_in_progress_at") && !j.at("first_moved_to_in_progress_at").is_null()) {
+            j.at("first_moved_to_in_progress_at").get_to(c.first_moved_to_in_progress_at);
+        }
+        if (j.contains("completed_at") && !j.at("completed_at").is_null()) {
+            j.at("completed_at").get_to(c.completed_at);
+        }
+        if (j.contains("counters_recalculated_at") && !j.at("counters_recalculated_at").is_null()) {
+            j.at("counters_recalculated_at").get_to(c.counters_recalculated_at);
+        }
+        if (j.contains("comment_last_added_at") && !j.at("comment_last_added_at").is_null()) {
+            j.at("comment_last_added_at").get_to(c.comment_last_added_at);
+        }
+
         // Массивы
         if (j.contains("members") && j.at("members").is_array()) {
             c.members = j.at("members").get<std::vector<User>>();
@@ -325,7 +385,7 @@ void from_json(const nlohmann::json& j, Card& c) {
         if (j.contains("children") && j.at("children").is_array()) {
             c.children = j.at("children").get<std::vector<nlohmann::json>>();
         }
-        
+
         // Строковые поля
         c.type = get_optional(j, "type", std::string());
         c.description = get_optional(j, "description", std::string());
@@ -336,7 +396,7 @@ void from_json(const nlohmann::json& j, Card& c) {
         c.size_unit = get_optional(j, "size_unit", std::string());
         c.share_id = get_optional(j, "share_id", std::string());
         c.fts_version = get_optional(j, "fts_version", std::string());
-        
+
         // Числовые поля
         c.size = get_int_optional(j, "size", 0);
         c.condition = get_int_optional(j, "condition", 0);
@@ -350,12 +410,12 @@ void from_json(const nlohmann::json& j, Card& c) {
         c.time_spent_sum = get_int_optional(j, "time_spent_sum", 0);
         c.time_blocked_sum = get_int_optional(j, "time_blocked_sum", 0);
         c.sort_order = get_double_optional(j, "sort_order", 0.0);
-        
+
         // Опциональные числовые поля
         if (j.contains("fifo_order") && !j.at("fifo_order").is_null()) {
             c.fifo_order = get_double_optional(j, "fifo_order", 0.0);
         }
-        
+
         // JSON объекты
         if (j.contains("properties") && !j.at("properties").is_null()) {
             c.properties = j.at("properties");
@@ -369,7 +429,7 @@ void from_json(const nlohmann::json& j, Card& c) {
         if (j.contains("parent_checklist_ids") && !j.at("parent_checklist_ids").is_null()) {
             c.parent_checklist_ids = j.at("parent_checklist_ids");
         }
-        
+
         // Опциональные JSON объекты
         if (j.contains("external_id") && !j.at("external_id").is_null()) {
             c.external_id = j.at("external_id");
@@ -392,7 +452,7 @@ void from_json(const nlohmann::json& j, Card& c) {
         if (j.contains("completed_on_time") && !j.at("completed_on_time").is_null()) {
             c.completed_on_time = j.at("completed_on_time");
         }
-        
+
     } catch (const std::exception& e) {
         std::cerr << "Error parsing Card JSON: " << e.what() << std::endl;
         // Выводим дополнительную информацию для отладки
@@ -402,4 +462,3 @@ void from_json(const nlohmann::json& j, Card& c) {
         throw;
     }
 }
-

@@ -20,7 +20,8 @@ set(SOURCES
     src/http_client.cpp
     src/modes.cpp
     src/card.cpp
-    #src/kaiten.cpp  # если вы вынесете реализации из hpp
+    src/card_utils.cpp
+    src/kaiten.cpp
 )
 
 add_executable(kunstkammer ${SOURCES})
