@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 #include <optional>
-#include <map>
 
 #include "date.hpp"
 
@@ -23,8 +22,8 @@ struct Simple_card {
     std::int64_t board_id = 0;
     std::int64_t column_id = 0;
     std::int64_t lane_id = 0;
-    CardDate created;
-    CardDate updated;
+    Card_date created;
+    Card_date updated;
     std::vector<std::string> tags;
 };
 
@@ -46,9 +45,9 @@ struct User {
     bool virtual_user = false;
     std::optional<std::string> email_blocked;
     std::optional<std::string> email_blocked_reason;
-    std::optional<CardDate> delete_requested_at;
-    CardDate created;
-    CardDate updated;
+    std::optional<Card_date> delete_requested_at;
+    Card_date created;
+    Card_date updated;
 
     // Для членов карточки
     std::optional<std::int64_t> card_id;
@@ -89,7 +88,7 @@ struct Lane {
 };
 
 // Структура для типа карточки
-struct CardType {
+struct Card_type {
     std::int64_t id = 0;
     std::string name;
     std::string letter;
@@ -109,7 +108,7 @@ struct Tag {
 };
 
 // Структура для родительской карточки (упрощенная)
-struct ParentCard {
+struct Parent_card {
     std::int64_t id = 0;
     std::int64_t card_id = 0;
     std::string title;
@@ -125,19 +124,19 @@ struct ParentCard {
     int size = 0;
     int children_count = 0;
     int children_done = 0;
-    CardDate created;
-    CardDate updated;
-    CardDate column_changed_at;
-    CardDate lane_changed_at;
-    CardDate last_moved_at;
-    CardDate last_moved_to_done_at;
+    Card_date created;
+    Card_date updated;
+    Card_date column_changed_at;
+    Card_date lane_changed_at;
+    Card_date last_moved_at;
+    Card_date last_moved_to_done_at;
     std::optional<std::int64_t> owner_id;
     std::optional<nlohmann::json> children_ids;
     std::optional<nlohmann::json> children_number_properties_sum;
 };
 
 // Структура для разрешений карточки
-struct CardPermissions {
+struct Card_permissions {
     bool comment = false;
     bool create = false;
     bool delete_perm = false;
@@ -149,16 +148,16 @@ struct CardPermissions {
 };
 
 // Структура для path_data
-struct PathData {
-    struct PathItem {
+struct Path_data {
+    struct Path_item {
         std::int64_t id = 0;
         std::string title;
     };
     
-    PathItem board;
-    PathItem column;
-    PathItem lane;
-    PathItem space;
+    Path_item board;
+    Path_item column;
+    Path_item lane;
+    Path_item space;
 };
 
 // Основная структура Card
@@ -201,25 +200,25 @@ struct Card {
     Column column;
     Lane lane;
     User owner;
-    CardType card_type;
-    CardPermissions permissions;
-    std::optional<PathData> path_data;
+    Card_type card_type;
+    Card_permissions permissions;
+    std::optional<Path_data> path_data;
     
     // Даты
-    CardDate created;
-    CardDate updated;
-    CardDate column_changed_at;
-    CardDate lane_changed_at;
-    CardDate last_moved_at;
-    CardDate last_moved_to_done_at;
-    CardDate first_moved_to_in_progress_at;
-    CardDate completed_at;
-    CardDate counters_recalculated_at;
-    CardDate comment_last_added_at;
+    Card_date created;
+    Card_date updated;
+    Card_date column_changed_at;
+    Card_date lane_changed_at;
+    Card_date last_moved_at;
+    Card_date last_moved_to_done_at;
+    Card_date first_moved_to_in_progress_at;
+    Card_date completed_at;
+    Card_date counters_recalculated_at;
+    Card_date comment_last_added_at;
     
     // Массивы
     std::vector<User> members;
-    std::vector<ParentCard> parents;
+    std::vector<Parent_card> parents;
     std::vector<Tag> tags;
     std::vector<std::int64_t> parent_ids;
     std::vector<std::int64_t> children_ids;
@@ -295,11 +294,11 @@ void from_json(const nlohmann::json& j, User& u);
 void from_json(const nlohmann::json& j, Board& b);
 void from_json(const nlohmann::json& j, Column& col);
 void from_json(const nlohmann::json& j, Lane& l);
-void from_json(const nlohmann::json& j, CardType& ct);
+void from_json(const nlohmann::json& j, Card_type& ct);
 void from_json(const nlohmann::json& j, Tag& t);
-void from_json(const nlohmann::json& j, ParentCard& pc);
-void from_json(const nlohmann::json& j, CardPermissions& cp);
-void from_json(const nlohmann::json& j, PathData& pd);
-void from_json(const nlohmann::json& j, PathData::PathItem& pi);
+void from_json(const nlohmann::json& j, Parent_card& pc);
+void from_json(const nlohmann::json& j, Card_permissions& cp);
+void from_json(const nlohmann::json& j, Path_data& pd);
+void from_json(const nlohmann::json& j, Path_data::Path_item& pi);
 
 #endif // CARD_HPP

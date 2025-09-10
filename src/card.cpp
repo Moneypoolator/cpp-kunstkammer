@@ -152,7 +152,7 @@ void from_json(const nlohmann::json& j, Lane& l)
     }
 }
 
-void from_json(const nlohmann::json& j, CardType& ct)
+void from_json(const nlohmann::json& j, Card_type& ct)
 {
     ct.id = get_int64_optional(j, "id", 0LL);
     ct.name = get_optional(j, "name", std::string());
@@ -176,7 +176,7 @@ void from_json(const nlohmann::json& j, Tag& t)
     }
 }
 
-void from_json(const nlohmann::json& j, CardPermissions& cp)
+void from_json(const nlohmann::json& j, Card_permissions& cp)
 {
     cp.comment = get_optional(j, "comment", false);
     cp.create = get_optional(j, "create", false);
@@ -188,13 +188,13 @@ void from_json(const nlohmann::json& j, CardPermissions& cp)
     cp.update = get_optional(j, "update", false);
 }
 
-void from_json(const nlohmann::json& j, PathData::PathItem& pi)
+void from_json(const nlohmann::json& j, Path_data::Path_item& pi)
 {
     pi.id = get_int64_optional(j, "id", 0LL);
     pi.title = get_optional(j, "title", std::string());
 }
 
-void from_json(const nlohmann::json& j, PathData& pd)
+void from_json(const nlohmann::json& j, Path_data& pd)
 {
     if (j.contains("board") && !j.at("board").is_null()) {
         j.at("board").get_to(pd.board);
@@ -210,7 +210,7 @@ void from_json(const nlohmann::json& j, PathData& pd)
     }
 }
 
-void from_json(const nlohmann::json& j, ParentCard& pc)
+void from_json(const nlohmann::json& j, Parent_card& pc)
 {
     pc.id = get_int64_optional(j, "id", 0LL);
     pc.card_id = get_int64_optional(j, "card_id", 0LL);
@@ -365,7 +365,7 @@ void from_json(const nlohmann::json& j, Card& c)
             c.members = j.at("members").get<std::vector<User>>();
         }
         if (j.contains("parents") && j.at("parents").is_array()) {
-            c.parents = j.at("parents").get<std::vector<ParentCard>>();
+            c.parents = j.at("parents").get<std::vector<Parent_card>>();
         }
         if (j.contains("tags") && j.at("tags").is_array()) {
             c.tags = j.at("tags").get<std::vector<Tag>>();
