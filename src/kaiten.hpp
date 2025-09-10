@@ -8,6 +8,7 @@
 
 #include "http_client.hpp"
 #include "card.hpp"
+#include "card_utils.hpp"
 
 namespace kaiten {
 
@@ -20,7 +21,7 @@ inline std::pair<int, Card> create_card(
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const Card& desired
+    const Simple_card& desired
 ) {
     std::string target = api_path + "/cards";
 
@@ -104,7 +105,7 @@ inline std::pair<int, Card> update_card(
     const std::string& api_path,
     const std::string& token,
     const std::string& id_or_number,
-    const Card& changes
+    const Simple_card& changes
 ) {
     std::string target = api_path + "/cards/" + id_or_number;
 
@@ -175,6 +176,49 @@ inline std::pair<int, Card> update_card(
         if (!response.empty()) {
             std::cerr << "Error body: " << response << std::endl;
         }
+    }
+
+    return {status, Card{}};
+}
+
+// kaiten.hpp - добавить после update_card
+inline std::pair<int, Card> get_card(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    const std::string& id_or_number
+) {
+    std::string target = api_path + "/cards/" + id_or_number;
+    
+    auto [status, response] = client.get(host, "443", target, token);
+    if (status == 200) {
+        try {
+            auto j = nlohmann::json::parse(response);
+            Card card = j.get<Card>();
+            card_utils::print_card_details(card, true);
+            return {status, card};
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to parse card JSON: " << e.what() << std::endl;
+            std::cerr << "Raw response: " << response << std::endl;
+            return {status, Card{}};
+        }
+    }
+
+    // Обработка ошибок
+    switch (status) {
+        case 401:
+            std::cerr << "Get card failed: 401 Unauthorized. Check Bearer token." << std::endl;
+            break;
+        case 403:
+            std::cerr << "Get card failed: 403 Forbidden. Insufficient permissions." << std::endl;
+            break;
+        case 404:
+            std::cerr << "Get card failed: 404 Not Found. Card not found." << std::endl;
+            break;
+        default:
+            std::cerr << "Get card failed: Status " << status << "." << std::endl;
+            break;
     }
 
     return {status, Card{}};

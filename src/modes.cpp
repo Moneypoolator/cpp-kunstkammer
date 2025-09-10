@@ -1,14 +1,14 @@
 #include "modes.hpp"
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 // <sstream> intentionally kept for potential future parsing needs in modes
 
 #include "card.hpp"
 #include "kaiten.hpp"
 
 namespace {
-    
+
 template <typename Client>
 bool paginate_cards(
     Client& client,
@@ -17,8 +17,8 @@ bool paginate_cards(
     const std::string& token,
     int page_size,
     const std::function<void(const nlohmann::json&)>& handle_items,
-    int& total_items_out
-) {
+    int& total_items_out)
+{
     std::string cards_path = api_path + "/cards";
     total_items_out = 0;
 
@@ -35,17 +35,28 @@ bool paginate_cards(
         try {
             auto json = nlohmann::json::parse(body);
             nlohmann::json items_json = json.is_array() ? json : (json.contains("cards") && json["cards"].is_array() ? json["cards"] : nlohmann::json::array());
-            if (items_json.empty()) { break; }
+            if (items_json.empty()) {
+                break;
+            }
 
             std::string first_id_curr;
-            try { first_id_curr = items_json[0].value("id", std::string()); } catch (...) { first_id_curr = ""; }
-            if (page_number > 1 && !first_id_curr.empty() && first_id_curr == last_first_id) { used_page_style = false; break; }
+            try {
+                first_id_curr = items_json[0].value("id", std::string());
+            } catch (...) {
+                first_id_curr = "";
+            }
+            if (page_number > 1 && !first_id_curr.empty() && first_id_curr == last_first_id) {
+                used_page_style = false;
+                break;
+            }
             last_first_id = first_id_curr;
 
             handle_items(items_json);
             total_items_out += static_cast<int>(items_json.size());
             std::cout << "Fetched page " << page_number << ", items: " << items_json.size() << std::endl;
-            if (static_cast<int>(items_json.size()) < page_size) { break; }
+            if (static_cast<int>(items_json.size()) < page_size) {
+                break;
+            }
         } catch (const std::exception&) {
             used_page_style = false;
             break;
@@ -58,15 +69,21 @@ bool paginate_cards(
         while (true) {
             std::string target = cards_path + "?offset=" + std::to_string(offset) + "&limit=" + std::to_string(page_size);
             auto [status, body] = client.get(host, "443", target, token);
-            if (status != 200) { break; }
+            if (status != 200) {
+                break;
+            }
             try {
                 auto json = nlohmann::json::parse(body);
                 nlohmann::json items_json = json.is_array() ? json : (json.contains("cards") && json["cards"].is_array() ? json["cards"] : nlohmann::json::array());
-                if (items_json.empty()) { break; }
+                if (items_json.empty()) {
+                    break;
+                }
                 handle_items(items_json);
                 total_items_out += static_cast<int>(items_json.size());
                 std::cout << "Fetched offset " << offset << ", items: " << items_json.size() << std::endl;
-                if (static_cast<int>(items_json.size()) < page_size) { break; }
+                if (static_cast<int>(items_json.size()) < page_size) {
+                    break;
+                }
                 offset += static_cast<int>(items_json.size());
             } catch (const std::exception&) {
                 break;
@@ -78,25 +95,75 @@ bool paginate_cards(
 }
 } // namespace
 
-int handle_get_card(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token, const std::string& card_number) {
-    std::string path = api_path + "/cards/" + card_number;
-    auto [status, body] = client.get(host, "443", path, token);
-    std::cout << "GET HTTP status: " << status << std::endl;
-    std::cout << "GET response: " << body << std::endl;
+int handle_get_card(Http_client& client, const std::string& host,
+    const std::string& api_path, const std::string& token,
+    const std::string& card_number)
+{
+
+    auto [status, card] = get_card(client, host, api_path, token, card_number);
+
     if (status == 200) {
-        try {
-            Card card = nlohmann::json::parse(body).get<Card>();
-            std::cout << "Card id: " << card.id << "\nCard number: " << card.number << "\nCard title: " << card.title << "\nCard type: " << card.type << "\nCard size: " << card.size << "\nCreated at: " << card.created_at.toIso8601() << "\nUpdated at: " << card.updated_at.toIso8601() << std::endl;
-            return 0;
-        } catch (const std::exception& e) {
-            std::cerr << "Failed to parse card JSON: " << e.what() << std::endl;
-            return 1;
-        }
-    }
+        // std::cout << "=== Card Details ===\n"
+        //           << "ID: " << card.id << "\n"
+        //           << "Number: " << card.number << "\n"
+        //           << "Title: " << card.title << "\n"
+        //           << "Type: " << card.type << " (ID: " << card.type_id << ")\n"
+        //           << "Size: " << card.size << "\n"
+        //           << "State: " << card.state << "\n"
+        //           << "Archived: " << (card.archived ? "Yes" : "No") << "\n"
+        //           << "Blocked: " << (card.blocked ? "Yes" : "No") << "\n"
+        //           << "\n=== Board ===\n"
+        //           << "Board ID: " << card.board_id << "\n"
+        //           << "Board Title: " << card.board.title << "\n"
+        //           << "\n=== Column ===\n"
+        //           << "Column ID: " << card.column_id << "\n"
+        //           << "Column Title: " << card.column.title << "\n"
+        //           << "\n=== Lane ===\n"
+        //           << "Lane ID: " << card.lane_id << "\n"
+        //           << "Lane Title: " << card.lane.title << "\n"
+        //           << "\n=== Owner ===\n"
+        //           << "Owner ID: " << card.owner_id << "\n"
+        //           << "Owner Name: " << card.owner.full_name << "\n"
+        //           << "Owner Email: " << card.owner.email << "\n"
+        //           << "\n=== Dates ===\n"
+        //           << "Created: " << card.created.toIso8601() << "\n"
+        //           << "Updated: " << card.updated.toIso8601() << "\n"
+        //           << "Last Moved: " << card.last_moved_at.toIso8601() << "\n";
+
+        // if (!card.members.empty()) {
+        //     std::cout << "\n=== Members ===\n";
+        //     for (const auto& member : card.members) {
+        //         std::cout << " - " << member.full_name << " (" << member.email << ")\n";
+        //     }
+        // }
+
+        // if (!card.tags.empty()) {
+        //     std::cout << "\n=== Tags ===\n";
+        //     for (const auto& tag : card.tags) {
+        //         std::cout << " - " << tag.name << " (Color: " << tag.color << ")\n";
+        //     }
+        // }
+
+        // if (!card.parents.empty()) {
+        //     std::cout << "\n=== Parents ===\n";
+        //     for (const auto& parent : card.parents) {
+        //         std::cout << " - #" << parent.number << ": " << parent.title << "\n";
+        //     }
+        // }
+
+        // if (!card.description.empty()) {
+        //     std::cout << "\n=== Description ===\n"
+        //               << card.description << "\n";
+        // }
+
+        return 0;
+    } 
+    std::cerr << "Failed to get card. Status: " << status << std::endl;
     return 1;
 }
 
-int handle_cards_list(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token) {
+int handle_cards_list(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token)
+{
     const int page_size = 100;
     int total_cards = 0;
     auto print_items = [](const nlohmann::json& items_json) {
@@ -115,14 +182,17 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
     return 0;
 }
 
-int handle_tasks(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token, const Config& config, const std::string& tasks_file_path) {
+int handle_tasks(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token, const Config& config, const std::string& tasks_file_path)
+{
     std::ifstream tasks_file(tasks_file_path);
     if (!tasks_file) {
         std::cerr << "Could not open tasks file: " << tasks_file_path << std::endl;
         return 1;
     }
     nlohmann::json tasks_json;
-    try { tasks_file >> tasks_json; } catch (const std::exception& e) {
+    try {
+        tasks_file >> tasks_json;
+    } catch (const std::exception& e) {
         std::cerr << "Failed to parse tasks JSON: " << e.what() << std::endl;
         return 1;
     }
@@ -132,15 +202,15 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
     }
     auto& tasks = tasks_json["schedule"]["tasks"];
     for (const auto& task : tasks) {
-        Card desired;
+        Simple_card desired;
         desired.title = task.value("title", "");
         desired.column_id = std::stoll(config.columnId);
         desired.lane_id = std::stoll(config.laneId);
         desired.type = task.value("type", "");
         desired.size = task.value("size", 0);
-        if (task.contains("tags") && task["tags"].is_array()) {
-            desired.tags = task["tags"].get<std::vector<std::string>>();
-        }
+        // if (task.contains("tags") && task["tags"].is_array()) {
+        //     desired.tags = task["tags"].get<std::vector<std::string>>();
+        // }
 
         std::cout << "Creating card: title='" << desired.title << "' column=" << desired.column_id << " lane=" << desired.lane_id << std::endl;
         auto [status, created] = kaiten::create_card(client, host, api_path, token, desired);
@@ -152,8 +222,9 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
     return 0;
 }
 
-int handle_create_card(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token, const Config& config, const std::string& title, const std::string& type, int size, const std::vector<std::string>& tags) {
-    Card desired;
+int handle_create_card(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token, const Config& config, const std::string& title, const std::string& type, int size, const std::vector<std::string>& tags)
+{
+    Simple_card desired;
     desired.title = title;
     desired.column_id = std::stoll(config.columnId);
     desired.lane_id = std::stoll(config.laneId);
@@ -170,5 +241,3 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     }
     return 1;
 }
-
-
