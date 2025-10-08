@@ -13,6 +13,33 @@
 
 namespace kaiten {
 
+    // Временная функция для отладки структуры ответа
+void debug_api_response(const std::string& response) {
+    try {
+        auto json = nlohmann::json::parse(response);
+        std::cout << "=== API Response Structure ===" << std::endl;
+        std::cout << "Is array: " << json.is_array() << std::endl;
+        std::cout << "Keys: ";
+        for (auto it = json.begin(); it != json.end(); ++it) {
+            std::cout << it.key() << " ";
+        }
+        std::cout << std::endl;
+        
+        if (json.contains("pagination")) {
+            std::cout << "Pagination: " << json["pagination"].dump(2) << std::endl;
+        }
+        if (json.contains("meta")) {
+            std::cout << "Meta: " << json["meta"].dump(2) << std::endl;
+        }
+        if (json.contains("cards")) {
+            std::cout << "Cards count: " << json["cards"].size() << std::endl;
+        }
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Debug parse error: " << e.what() << std::endl;
+    }
+}
+
 // Creates a new card using the Kaiten API.
 // Required fields: title, column_id, lane_id.
 // Optional fields used if present: type, size, tags.
@@ -336,7 +363,7 @@ std::string generate_cache_key(const std::string& endpoint,
 }
 
 // Improved paginated cards with metadata support
-PaginatedResult<Card> get_cards_paginated(
+PaginatedResult<Card> get_cards_paginated_0(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
@@ -402,7 +429,7 @@ PaginatedResult<Card> get_cards_paginated(
             ApiCache::card_cache().put(card.id, card);
             ApiCache::card_number_cache().put(card.number, card);
         }
-        
+
         // Парсим метаданные пагинации
         result.page = pagination.page;
         result.per_page = pagination.per_page;
@@ -436,7 +463,7 @@ PaginatedResult<Card> get_cards_paginated(
 }
 
 // Get all cards with automatic pagination
-std::pair<int, std::vector<Card>> get_all_cards(
+std::pair<int, std::vector<Card>> get_all_cards_0(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
@@ -481,6 +508,182 @@ std::pair<int, std::vector<Card>> get_all_cards(
     std::cout << "Total cards fetched: " << all_cards.size() << std::endl;
     return { last_status, all_cards };
 }
+
+// Improved paginated cards with better metadata handling
+PaginatedResult<Card> get_cards_paginated(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    const PaginationParams& pagination,
+    const CardFilterParams& filters)
+{
+    PaginatedResult<Card> result;
+    
+    std::string query = QueryBuilder::build(pagination, filters);
+    std::string target = api_path + "/cards" + query;
+    
+    std::cout << "API Request: " << target << std::endl;
+    
+    auto [status, response] = client.get(host, "443", target, token);
+    
+    if (status != 200) {
+        std::cerr << "Failed to fetch cards page " << pagination.page 
+                  << ". Status: " << status << std::endl;
+        if (!response.empty()) {
+            std::cerr << "Response: " << response << std::endl;
+        }
+        return result;
+    }
+    
+    try {
+        auto json = nlohmann::json::parse(response);
+        
+        // Парсим элементы
+        if (json.is_array()) {
+            result.items = json.get<std::vector<Card>>();
+        } else if (json.contains("cards") && json["cards"].is_array()) {
+            result.items = json["cards"].get<std::vector<Card>>();
+        } else if (json.contains("data") && json["data"].is_array()) {
+            result.items = json["data"].get<std::vector<Card>>();
+        } else {
+            std::cerr << "Unexpected response format for cards" << std::endl;
+            std::cerr << "Response: " << json.dump(2) << std::endl;
+            return result;
+        }
+        
+        // Парсим метаданные пагинации
+        result.page = pagination.page;
+        result.per_page = pagination.per_page;
+        result.total_count = result.items.size(); // временно
+        
+        // Пытаемся извлечь метаданные пагинации из различных возможных мест
+        if (json.contains("pagination")) {
+            const auto& pagination_info = json["pagination"];
+            if (pagination_info.contains("total")) {
+                result.total_count = pagination_info["total"].get<int>();
+            }
+            if (pagination_info.contains("per_page")) {
+                result.per_page = pagination_info["per_page"].get<int>();
+            }
+            if (pagination_info.contains("page")) {
+                result.page = pagination_info["page"].get<int>();
+            }
+            if (pagination_info.contains("pages")) {
+                result.total_pages = pagination_info["pages"].get<int>();
+            }
+            if (pagination_info.contains("has_more")) {
+                result.has_more = pagination_info["has_more"].get<bool>();
+            }
+        } else if (json.contains("meta")) {
+            const auto& meta_info = json["meta"];
+            if (meta_info.contains("total")) {
+                result.total_count = meta_info["total"].get<int>();
+            }
+            if (meta_info.contains("per_page")) {
+                result.per_page = meta_info["per_page"].get<int>();
+            }
+            if (meta_info.contains("current_page")) {
+                result.page = meta_info["current_page"].get<int>();
+            }
+            if (meta_info.contains("last_page")) {
+                result.total_pages = meta_info["last_page"].get<int>();
+            }
+        }
+        
+        // Если не нашли метаданные, вычисляем has_more на основе размера страницы
+        if (result.total_pages == 0) {
+            result.total_pages = result.page; // временно
+            result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+        }
+        
+        std::cout << "Page " << result.page << "/" << result.total_pages 
+                  << ", items: " << result.items.size() 
+                  << ", per_page: " << result.per_page 
+                  << ", has_more: " << (result.has_more ? "yes" : "no") << std::endl;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to parse cards paginated response: " << e.what() << std::endl;
+        std::cerr << "Raw response: " << response << std::endl;
+    }
+    
+    return result;
+}
+
+// Get all cards with automatic pagination (улучшенная версия)
+std::pair<int, std::vector<Card>> get_all_cards(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    const CardFilterParams& filters,
+    int page_size)
+{
+    std::vector<Card> all_cards;
+    int last_status = 200;
+    
+    PaginationParams pagination;
+    pagination.per_page = page_size;
+    pagination.page = 1;
+    
+    int total_pages_fetched = 0;
+    int max_pages = 1000; // защита от бесконечного цикла
+    
+    std::cout << "Starting to fetch all cards..." << std::endl;
+    
+    while (total_pages_fetched < max_pages) {
+        std::cout << "Fetching page " << pagination.page << "..." << std::endl;
+        
+        auto page_result = get_cards_paginated(client, host, api_path, token, 
+                                             pagination, filters);
+        
+        if (page_result.items.empty()) {
+            std::cout << "No cards found on page " << pagination.page << std::endl;
+            break;
+        }
+        
+        all_cards.insert(all_cards.end(), 
+                        page_result.items.begin(), 
+                        page_result.items.end());
+        
+        std::cout << "Page " << pagination.page 
+                  << ": " << page_result.items.size() << " cards" 
+                  << ", total: " << all_cards.size() << std::endl;
+        
+        // Проверяем условия завершения
+        bool should_break = false;
+        
+        // Если API возвращает информацию о total_pages
+        if (page_result.total_pages > 0 && pagination.page >= page_result.total_pages) {
+            std::cout << "Reached last page (" << page_result.total_pages << ")" << std::endl;
+            should_break = true;
+        }
+        // Если на странице меньше карточек, чем размер страницы - это последняя страница
+        else if (page_result.items.size() < static_cast<size_t>(pagination.per_page)) {
+            std::cout << "Last page detected (fewer items than page size)" << std::endl;
+            should_break = true;
+        }
+        // Если флаг has_more установлен в false
+        else if (!page_result.has_more) {
+            std::cout << "No more pages available" << std::endl;
+            should_break = true;
+        }
+        
+        if (should_break) {
+            break;
+        }
+        
+        pagination.page++;
+        total_pages_fetched++;
+        
+        // Задержка для соблюдения rate limits
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    
+    std::cout << "Finished fetching cards. Total: " << all_cards.size() << std::endl;
+    return {last_status, all_cards};
+}
+
 
 // Improved paginated users
 PaginatedResult<User> get_users_paginated(
