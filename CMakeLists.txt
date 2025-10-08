@@ -22,6 +22,7 @@ set(SOURCES
     src/card.cpp
     src/card_utils.cpp
     src/kaiten.cpp
+    src/rate_limiter.cpp
 )
 
 add_executable(kunstkammer ${SOURCES})

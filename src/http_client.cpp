@@ -1,10 +1,16 @@
 #include "http_client.hpp"
 
-Http_client::Http_client(net::io_context& ioc, ssl::context& ctx) : _ioc(ioc), _ctx(ctx) {}
+namespace beast = boost::beast;
+namespace http = beast::http;
+
+Http_client::Http_client(net::io_context& ioc, ssl::context& ctx, kaiten::RateLimiter* rate_limiter)
+    : _ioc(ioc), _ctx(ctx), _rate_limiter(rate_limiter) {}
 
 // Performs an HTTP POST and returns the response (status code, body)
 std::pair<int, std::string> Http_client::post(const std::string& host, const std::string& port, const std::string& target, const std::string& body, const std::string& token)
 {
+    apply_rate_limiting(); // Применяем rate limiting
+
     try
     {
         tcp::resolver resolver(_ioc);
@@ -58,6 +64,8 @@ std::pair<int, std::string> Http_client::post(const std::string& host, const std
 // Performs an HTTP GET and returns the response (status code, body)
 std::pair<int, std::string> Http_client::get(const std::string& host, const std::string& port, const std::string& target, const std::string& token)
 {
+    apply_rate_limiting(); // Применяем rate limiting
+
     try
     {
         std::cout << "GET Host: " << host << "\nGET Port: " << port << "\nGET Path: " << target << std::endl;
@@ -116,6 +124,8 @@ std::pair<int, std::string> Http_client::get(const std::string& host, const std:
 // Performs an HTTP PATCH and returns the response (status code, body)
 std::pair<int, std::string> Http_client::patch(const std::string& host, const std::string& port, const std::string& target, const std::string& body, const std::string& token)
 {
+    apply_rate_limiting(); // Применяем rate limiting
+    
     try
     {
         tcp::resolver resolver(_ioc);

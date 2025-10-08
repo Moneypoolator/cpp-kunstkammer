@@ -1,13 +1,15 @@
 #include "kaiten.hpp"
 
-#include <string>
-#include <utility>
 #include <iostream>
 #include <nlohmann/json.hpp>
+// #include <sstream>
+#include <string>
+#include <utility>
 
-#include "http_client.hpp"
+#include "cache.hpp"
 #include "card.hpp"
 #include "card_utils.hpp"
+#include "http_client.hpp"
 
 namespace kaiten {
 
@@ -20,14 +22,14 @@ std::pair<int, Card> create_card(
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const Simple_card& desired
-) {
+    const Simple_card& desired)
+{
     std::string target = api_path + "/cards";
 
     nlohmann::json body = {
-        {"title", desired.title},
-        {"column_id", desired.column_id},
-        {"lane_id", desired.lane_id}
+        { "title", desired.title },
+        { "column_id", desired.column_id },
+        { "lane_id", desired.lane_id }
     };
     if (!desired.type.empty()) {
         body["type"] = desired.type;
@@ -44,10 +46,10 @@ std::pair<int, Card> create_card(
         try {
             auto j = nlohmann::json::parse(response);
             Card created = j.get<Card>();
-            return {status, created};
+            return { status, created };
         } catch (...) {
             std::cerr << "Create card: success status but failed to parse response." << std::endl;
-            return {status, Card{}};
+            return { status, Card {} };
         }
     }
 
@@ -90,7 +92,7 @@ std::pair<int, Card> create_card(
         }
     }
 
-    return {status, Card{}};
+    return { status, Card {} };
 }
 
 // Updates an existing card. Target can be by numeric id or card number (string).
@@ -102,8 +104,8 @@ std::pair<int, Card> update_card(
     const std::string& api_path,
     const std::string& token,
     const std::string& id_or_number,
-    const Simple_card& changes
-) {
+    const Simple_card& changes)
+{
     std::string target = api_path + "/cards/" + id_or_number;
 
     nlohmann::json body = nlohmann::json::object();
@@ -131,10 +133,10 @@ std::pair<int, Card> update_card(
         try {
             auto j = nlohmann::json::parse(response);
             Card updated = j.get<Card>();
-            return {status, updated};
+            return { status, updated };
         } catch (...) {
             std::cerr << "Update card: success status but failed to parse response." << std::endl;
-            return {status, Card{}};
+            return { status, Card {} };
         }
     }
 
@@ -175,7 +177,7 @@ std::pair<int, Card> update_card(
         }
     }
 
-    return {status, Card{}};
+    return { status, Card {} };
 }
 
 // kaiten.hpp - добавить после update_card
@@ -184,21 +186,50 @@ std::pair<int, Card> get_card(
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const std::string& id_or_number
-) {
+    const std::string& id_or_number)
+{
+
+    // Пробуем получить из кэша по номеру
+    if (id_or_number.find("CARD-") == 0 || id_or_number.find("card-") == 0) {
+        auto cached = ApiCache::card_number_cache().get(id_or_number);
+        if (cached.has_value()) {
+            std::cout << "Cache HIT for card number: " << id_or_number << std::endl;
+            return { 200, cached.value() };
+        }
+    } else {
+        // Пробуем получить из кэша по ID
+        try {
+            std::int64_t card_id = std::stoll(id_or_number);
+            auto cached = ApiCache::card_cache().get(card_id);
+            if (cached.has_value()) {
+                std::cout << "Cache HIT for card ID: " << card_id << std::endl;
+                return { 200, cached.value() };
+            }
+        } catch (...) {
+            // Не число, продолжаем как строку
+        }
+    }
+
+    std::cout << "Cache MISS for: " << id_or_number << std::endl;
+
     std::string target = api_path + "/cards/" + id_or_number;
-    
+
     auto [status, response] = client.get(host, "443", target, token);
     if (status == 200) {
         try {
             auto j = nlohmann::json::parse(response);
             Card card = j.get<Card>();
+
+            // Сохраняем в кэш
+            ApiCache::card_cache().put(card.id, card);
+            ApiCache::card_number_cache().put(card.number, card);
+
             print_card_details(card, true);
-            return {status, card};
+            return { status, card };
         } catch (const std::exception& e) {
             std::cerr << "Failed to parse card JSON: " << e.what() << std::endl;
             std::cerr << "Raw response: " << response << std::endl;
-            return {status, Card{}};
+            return { status, Card {} };
         }
     }
 
@@ -218,10 +249,373 @@ std::pair<int, Card> get_card(
             break;
     }
 
-    return {status, Card{}};
+    return { status, Card {} };
+}
+
+// Gets a specific user by ID
+std::pair<int, User> get_user(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    std::int64_t user_id)
+{
+    // Пробуем получить из кэша
+    auto cached = ApiCache::user_cache().get(user_id);
+    if (cached.has_value()) {
+        std::cout << "Cache HIT for user ID: " << user_id << std::endl;
+        return { 200, cached.value() };
+    }
+
+    std::cout << "Cache MISS for user ID: " << user_id << std::endl;
+
+    std::string target = api_path + "/users/" + std::to_string(user_id);
+
+    auto [status, response] = client.get(host, "443", target, token);
+    if (status == 200) {
+        try {
+            auto j = nlohmann::json::parse(response);
+            User user = j.get<User>();
+
+            // Сохраняем в кэш
+            ApiCache::user_cache().put(user.id, user);
+
+            return { status, user };
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to parse user JSON: " << e.what() << std::endl;
+            std::cerr << "Raw response: " << response << std::endl;
+            return { status, User {} };
+        }
+    }
+
+    // Обработка ошибок
+    switch (status) {
+        case 401:
+            std::cerr << "Get user failed: 401 Unauthorized. Check Bearer token." << std::endl;
+            break;
+        case 403:
+            std::cerr << "Get user failed: 403 Forbidden. Insufficient permissions." << std::endl;
+            break;
+        case 404:
+            std::cerr << "Get user failed: 404 Not Found. User not found." << std::endl;
+            break;
+        default:
+            std::cerr << "Get user failed: Status " << status << "." << std::endl;
+            break;
+    }
+
+    return { status, User {} };
+}
+
+// Кэширование для списков с ключом на основе параметров
+std::string generate_cache_key(const std::string& endpoint,
+    const PaginationParams& pagination,
+    const CardFilterParams& filters)
+{
+    std::stringstream key;
+    key << endpoint << "_page_" << pagination.page << "_size_" << pagination.per_page;
+
+    // Добавляем фильтры в ключ
+    if (filters.board_id) {
+        key << "_b" << *filters.board_id;
+    }
+    if (filters.lane_id) {
+        key << "_l" << *filters.lane_id;
+    }
+    if (filters.column_id) {
+        key << "_c" << *filters.column_id;
+    }
+    if (filters.state) {
+        key << "_s" << *filters.state;
+    }
+    if (filters.type_name) {
+        key << "_t" << *filters.type_name;
+    }
+
+    return key.str();
+}
+
+// Improved paginated cards with metadata support
+PaginatedResult<Card> get_cards_paginated(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    const PaginationParams& pagination,
+    const CardFilterParams& filters)
+{
+    // Генерируем ключ кэша
+    std::string cache_key = generate_cache_key("cards", pagination, filters);
+    
+    // Пробуем получить из кэша списков
+    auto cached = ApiCache::list_cache().get(cache_key);
+    if (cached.has_value()) {
+        std::cout << "Cache HIT for cards list: " << cache_key << std::endl;
+        try {
+            PaginatedResult<Card> result;
+            result.items = cached->get<std::vector<Card>>();
+            // Для списков не кэшируем полные метаданные пагинации
+            result.page = pagination.page;
+            result.per_page = pagination.per_page;
+            result.total_count = result.items.size();
+            result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+            return result;
+        } catch (...) {
+            // В случае ошибки парсинга продолжаем обычным путем
+        }
+    }
+    
+    std::cout << "Cache MISS for cards list: " << cache_key << std::endl;
+
+    PaginatedResult<Card> result;
+
+    std::string query = QueryBuilder::build(pagination, filters);
+    std::string target = api_path + "/cards" + query;
+
+    auto [status, response] = client.get(host, "443", target, token);
+
+    if (status != 200) {
+        std::cerr << "Failed to fetch cards page " << pagination.page
+                  << ". Status: " << status << std::endl;
+        return result;
+    }
+
+    try {
+        auto json = nlohmann::json::parse(response);
+
+        // Парсим элементы
+        if (json.is_array()) {
+            result.items = json.get<std::vector<Card>>();
+        } else if (json.contains("cards") && json["cards"].is_array()) {
+            result.items = json["cards"].get<std::vector<Card>>();
+        } else {
+            std::cerr << "Unexpected response format for cards" << std::endl;
+            return result;
+        }
+
+        // Сохраняем в кэш списков
+        nlohmann::json cache_data = result.items;
+        ApiCache::list_cache().put(cache_key, cache_data);
+        
+        // Кэшируем отдельные карточки
+        for (const auto& card : result.items) {
+            ApiCache::card_cache().put(card.id, card);
+            ApiCache::card_number_cache().put(card.number, card);
+        }
+        
+        // Парсим метаданные пагинации
+        result.page = pagination.page;
+        result.per_page = pagination.per_page;
+        result.total_count = result.items.size(); // временно
+
+        if (json.contains("pagination")) {
+            const auto& pagination_info = json["pagination"];
+            if (pagination_info.contains("total")) {
+                result.total_count = pagination_info["total"].get<int>();
+            }
+            if (pagination_info.contains("per_page")) {
+                result.per_page = pagination_info["per_page"].get<int>();
+            }
+            if (pagination_info.contains("page")) {
+                result.page = pagination_info["page"].get<int>();
+            }
+            if (pagination_info.contains("pages")) {
+                result.total_pages = pagination_info["pages"].get<int>();
+            }
+        }
+
+        // Определяем, есть ли следующая страница
+        result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page) && result.page < result.total_pages;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to parse cards paginated response: " << e.what() << std::endl;
+        std::cerr << "Raw response: " << response << std::endl;
+    }
+
+    return result;
+}
+
+// Get all cards with automatic pagination
+std::pair<int, std::vector<Card>> get_all_cards(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    const CardFilterParams& filters,
+    int page_size)
+{
+    std::vector<Card> all_cards;
+    int last_status = 200;
+
+    PaginationParams pagination;
+    pagination.per_page = page_size;
+    pagination.page = 1;
+
+    int total_pages_fetched = 0;
+    int max_pages = 1000; // защита от бесконечного цикла
+
+    while (total_pages_fetched < max_pages) {
+        auto page_result = get_cards_paginated(client, host, api_path, token,
+            pagination, filters);
+
+        if (page_result.items.empty()) {
+            break;
+        }
+
+        all_cards.insert(all_cards.end(),
+            page_result.items.begin(),
+            page_result.items.end());
+
+        std::cout << "Fetched page " << pagination.page
+                  << " (" << page_result.items.size() << " cards)"
+                  << ", total: " << all_cards.size() << std::endl;
+
+        if (!page_result.has_more) {
+            break;
+        }
+
+        pagination.page++;
+        total_pages_fetched++;
+    }
+
+    std::cout << "Total cards fetched: " << all_cards.size() << std::endl;
+    return { last_status, all_cards };
+}
+
+// Improved paginated users
+PaginatedResult<User> get_users_paginated(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    const PaginationParams& pagination,
+    const UserFilterParams& filters)
+{
+    PaginatedResult<User> result;
+
+    std::string query = QueryBuilder::build(pagination, filters);
+    std::string target = api_path + "/users" + query;
+
+    auto [status, response] = client.get(host, "443", target, token);
+
+    if (status != 200) {
+        std::cerr << "Failed to fetch users page " << pagination.page
+                  << ". Status: " << status << std::endl;
+        return result;
+    }
+
+    try {
+        auto json = nlohmann::json::parse(response);
+
+        if (json.is_array()) {
+            result.items = json.get<std::vector<User>>();
+        } else {
+            std::cerr << "Unexpected response format for users" << std::endl;
+            return result;
+        }
+
+        // Для users API может не возвращать метаданные пагинации
+        result.page = pagination.page;
+        result.per_page = pagination.per_page;
+        result.total_count = result.items.size();
+        result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to parse users paginated response: " << e.what() << std::endl;
+        std::cerr << "Raw response: " << response << std::endl;
+    }
+
+    return result;
+}
+
+// Get all users with automatic pagination
+std::pair<int, std::vector<User>> get_all_users(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    const UserFilterParams& filters,
+    int page_size)
+{
+    std::vector<User> all_users;
+    int last_status = 200;
+
+    PaginationParams pagination;
+    pagination.per_page = page_size;
+    pagination.page = 1;
+
+    int total_pages_fetched = 0;
+    int max_pages = 100;
+
+    while (total_pages_fetched < max_pages) {
+        auto page_result = get_users_paginated(client, host, api_path, token,
+            pagination, filters);
+
+        if (page_result.items.empty()) {
+            break;
+        }
+
+        all_users.insert(all_users.end(),
+            page_result.items.begin(),
+            page_result.items.end());
+
+        std::cout << "Fetched users page " << pagination.page
+                  << " (" << page_result.items.size() << " users)"
+                  << ", total: " << all_users.size() << std::endl;
+
+        if (!page_result.has_more) {
+            break;
+        }
+
+        pagination.page++;
+        total_pages_fetched++;
+    }
+
+    std::cout << "Total users fetched: " << all_users.size() << std::endl;
+    return { last_status, all_users };
+}
+
+// Boards pagination
+PaginatedResult<Board> get_boards_paginated(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    const PaginationParams& pagination)
+{
+    PaginatedResult<Board> result;
+
+    std::string query = QueryBuilder::build(pagination, CardFilterParams {});
+    std::string target = api_path + "/boards" + query;
+
+    auto [status, response] = client.get(host, "443", target, token);
+
+    if (status != 200) {
+        std::cerr << "Failed to fetch boards page " << pagination.page
+                  << ". Status: " << status << std::endl;
+        return result;
+    }
+
+    try {
+        auto json = nlohmann::json::parse(response);
+
+        if (json.is_array()) {
+            result.items = json.get<std::vector<Board>>();
+        } else {
+            std::cerr << "Unexpected response format for boards" << std::endl;
+            return result;
+        }
+
+        result.page = pagination.page;
+        result.per_page = pagination.per_page;
+        result.total_count = result.items.size();
+        result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to parse boards paginated response: " << e.what() << std::endl;
+    }
+
+    return result;
 }
 
 } // namespace kaiten
-
-
-
