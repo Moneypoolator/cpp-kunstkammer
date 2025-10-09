@@ -138,7 +138,7 @@ make
 * --request-interval <ms> - минимальный интервал между запросами (по умолчанию: 100мс)
 
 Пагинация
-* --page-size <number> - размер страницы (по умолчанию: 100)
+* --limit <number> - размер страницы (по умолчанию: 100)
 * --sort-by <field> - поле для сортировки
 * --sort-order <order> - порядок сортировки (asc/desc)
 
@@ -178,7 +178,7 @@ make
 Получение карточек с фильтрацией
 
 ```bash
-./kaiten-client --cards-filter "board_id=123,state=active,archived=false" --page-size 50
+./kaiten-client --cards-filter "board_id=123,state=active,archived=false" --limit 50
 ```
 
 Создание одной карточки
@@ -247,13 +247,13 @@ make
 ./kunstkammer --cards-filter "lane_id=678,state=active" --config config.json
 
 # Получить все карточки с пагинацией и сортировкой
-./kunstkammer --cards-list --page-size 50 --sort-by updated --sort-order desc
+./kunstkammer --cards-list --limit 50 --sort-by updated --sort-order desc
 
 # Получить карточки с фильтрами и пагинацией
-./kunstkammer --cards-filter "board_id=123,state=active" --page-size 100
+./kunstkammer --cards-filter "board_id=123,state=active" --limit 100
 
 # Получить всех пользователей с пагинацией
-./kunstkammer --users-list --page-size 200
+./kunstkammer --users-list --limit 200
 
 # Получить все доски
 ./kunstkammer --boards-list

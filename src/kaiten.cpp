@@ -9,6 +9,7 @@
 #include "card.hpp"
 #include "card_utils.hpp"
 #include "http_client.hpp"
+#include "pagination.hpp"
 
 namespace kaiten {
 
@@ -339,7 +340,7 @@ std::string generate_cache_key(const std::string& endpoint,
     const Card_filter_params& filters)
 {
     std::stringstream key;
-    key << endpoint << "_page_" << pagination.page << "_size_" << pagination.per_page;
+    key << endpoint << "_page_" << pagination.page() << "_size_" << pagination.per_page();
 
     // Добавляем фильтры в ключ
     if (filters.board_id) {
@@ -361,154 +362,377 @@ std::string generate_cache_key(const std::string& endpoint,
     return key.str();
 }
 
-// Improved paginated cards with metadata support
-Paginated_result<Card> get_cards_paginated_0(
-    Http_client& client,
-    const std::string& host,
-    const std::string& api_path,
-    const std::string& token,
-    const Pagination_params& pagination,
-    const Card_filter_params& filters)
-{
-    // Генерируем ключ кэша
-    std::string cache_key = generate_cache_key("cards", pagination, filters);
+// // Improved paginated cards with metadata support
+// Paginated_result<Card> get_cards_paginated_0(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const Pagination_params& pagination,
+//     const Card_filter_params& filters)
+// {
+//     // Генерируем ключ кэша
+//     std::string cache_key = generate_cache_key("cards", pagination, filters);
     
-    // Пробуем получить из кэша списков
-    auto cached = Api_cache::list_cache().get(cache_key);
-    if (cached.has_value()) {
-        std::cout << "Cache HIT for cards list: " << cache_key << std::endl;
-        try {
-            Paginated_result<Card> result;
-            result.items = cached->get<std::vector<Card>>();
-            // Для списков не кэшируем полные метаданные пагинации
-            result.page = pagination.page;
-            result.per_page = pagination.per_page;
-            result.total_count = result.items.size();
-            result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
-            return result;
-        } catch (...) {
-            // В случае ошибки парсинга продолжаем обычным путем
-        }
-    }
+//     // Пробуем получить из кэша списков
+//     auto cached = Api_cache::list_cache().get(cache_key);
+//     if (cached.has_value()) {
+//         std::cout << "Cache HIT for cards list: " << cache_key << std::endl;
+//         try {
+//             Paginated_result<Card> result;
+//             result.items = cached->get<std::vector<Card>>();
+//             // Для списков не кэшируем полные метаданные пагинации
+//             result.page = pagination.page;
+//             result.per_page = pagination.per_page;
+//             result.total_count = result.items.size();
+//             result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+//             return result;
+//         } catch (...) {
+//             // В случае ошибки парсинга продолжаем обычным путем
+//         }
+//     }
     
-    std::cout << "Cache MISS for cards list: " << cache_key << std::endl;
+//     std::cout << "Cache MISS for cards list: " << cache_key << std::endl;
 
-    Paginated_result<Card> result;
+//     Paginated_result<Card> result;
 
-    std::string query = Query_builder::build(pagination, filters);
-    std::string target = api_path + "/cards" + query;
+//     std::string query = Query_builder::build(pagination, filters);
+//     std::string target = api_path + "/cards" + query;
 
-    auto [status, response] = client.get(host, "443", target, token);
+//     auto [status, response] = client.get(host, "443", target, token);
 
-    if (status != 200) {
-        std::cerr << "Failed to fetch cards page " << pagination.page
-                  << ". Status: " << status << std::endl;
-        return result;
-    }
+//     if (status != 200) {
+//         std::cerr << "Failed to fetch cards page " << pagination.page
+//                   << ". Status: " << status << std::endl;
+//         return result;
+//     }
 
-    try {
-        auto json = nlohmann::json::parse(response);
+//     try {
+//         auto json = nlohmann::json::parse(response);
 
-        // Парсим элементы
-        if (json.is_array()) {
-            result.items = json.get<std::vector<Card>>();
-        } else if (json.contains("cards") && json["cards"].is_array()) {
-            result.items = json["cards"].get<std::vector<Card>>();
-        } else {
-            std::cerr << "Unexpected response format for cards" << std::endl;
-            return result;
-        }
+//         // Парсим элементы
+//         if (json.is_array()) {
+//             result.items = json.get<std::vector<Card>>();
+//         } else if (json.contains("cards") && json["cards"].is_array()) {
+//             result.items = json["cards"].get<std::vector<Card>>();
+//         } else {
+//             std::cerr << "Unexpected response format for cards" << std::endl;
+//             return result;
+//         }
 
-        // Сохраняем в кэш списков
-        nlohmann::json cache_data = result.items;
-        Api_cache::list_cache().put(cache_key, cache_data);
+//         // Сохраняем в кэш списков
+//         nlohmann::json cache_data = result.items;
+//         Api_cache::list_cache().put(cache_key, cache_data);
         
-        // Кэшируем отдельные карточки
-        for (const auto& card : result.items) {
-            Api_cache::card_cache().put(card.id, card);
-            Api_cache::card_number_cache().put(card.number, card);
-        }
+//         // Кэшируем отдельные карточки
+//         for (const auto& card : result.items) {
+//             Api_cache::card_cache().put(card.id, card);
+//             Api_cache::card_number_cache().put(card.number, card);
+//         }
 
-        // Парсим метаданные пагинации
-        result.page = pagination.page;
-        result.per_page = pagination.per_page;
-        result.total_count = result.items.size(); // временно
+//         // Парсим метаданные пагинации
+//         result.page = pagination.page;
+//         result.per_page = pagination.per_page;
+//         result.total_count = result.items.size(); // временно
 
-        if (json.contains("pagination")) {
-            const auto& pagination_info = json["pagination"];
-            if (pagination_info.contains("total")) {
-                result.total_count = pagination_info["total"].get<int>();
-            }
-            if (pagination_info.contains("per_page")) {
-                result.per_page = pagination_info["per_page"].get<int>();
-            }
-            if (pagination_info.contains("page")) {
-                result.page = pagination_info["page"].get<int>();
-            }
-            if (pagination_info.contains("pages")) {
-                result.total_pages = pagination_info["pages"].get<int>();
-            }
-        }
+//         if (json.contains("pagination")) {
+//             const auto& pagination_info = json["pagination"];
+//             if (pagination_info.contains("total")) {
+//                 result.total_count = pagination_info["total"].get<int>();
+//             }
+//             if (pagination_info.contains("per_page")) {
+//                 result.per_page = pagination_info["per_page"].get<int>();
+//             }
+//             if (pagination_info.contains("page")) {
+//                 result.page = pagination_info["page"].get<int>();
+//             }
+//             if (pagination_info.contains("pages")) {
+//                 result.total_pages = pagination_info["pages"].get<int>();
+//             }
+//         }
 
-        // Определяем, есть ли следующая страница
-        result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page) && result.page < result.total_pages;
+//         // Определяем, есть ли следующая страница
+//         result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page) && result.page < result.total_pages;
 
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to parse cards paginated response: " << e.what() << std::endl;
-        std::cerr << "Raw response: " << response << std::endl;
-    }
+//     } catch (const std::exception& e) {
+//         std::cerr << "Failed to parse cards paginated response: " << e.what() << std::endl;
+//         std::cerr << "Raw response: " << response << std::endl;
+//     }
 
-    return result;
-}
+//     return result;
+// }
 
-// Get all cards with automatic pagination
-std::pair<int, std::vector<Card>> get_all_cards_0(
-    Http_client& client,
-    const std::string& host,
-    const std::string& api_path,
-    const std::string& token,
-    const Card_filter_params& filters,
-    int page_size)
-{
-    std::vector<Card> all_cards;
-    int last_status = 200;
+// // Get all cards with automatic pagination
+// std::pair<int, std::vector<Card>> get_all_cards_0(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const Card_filter_params& filters,
+//     int page_size)
+// {
+//     std::vector<Card> all_cards;
+//     int last_status = 200;
 
-    Pagination_params pagination;
-    pagination.per_page = page_size;
-    pagination.page = 1;
+//     Pagination_params pagination;
+//     pagination.per_page = page_size;
+//     pagination.page = 1;
 
-    int total_pages_fetched = 0;
-    int max_pages = 1000; // защита от бесконечного цикла
+//     int total_pages_fetched = 0;
+//     int max_pages = 1000; // защита от бесконечного цикла
 
-    while (total_pages_fetched < max_pages) {
-        auto page_result = get_cards_paginated(client, host, api_path, token,
-            pagination, filters);
+//     while (total_pages_fetched < max_pages) {
+//         auto page_result = get_cards_paginated(client, host, api_path, token,
+//             pagination, filters);
 
-        if (page_result.items.empty()) {
-            break;
-        }
+//         if (page_result.items.empty()) {
+//             break;
+//         }
 
-        all_cards.insert(all_cards.end(),
-            page_result.items.begin(),
-            page_result.items.end());
+//         all_cards.insert(all_cards.end(),
+//             page_result.items.begin(),
+//             page_result.items.end());
 
-        std::cout << "Fetched page " << pagination.page
-                  << " (" << page_result.items.size() << " cards)"
-                  << ", total: " << all_cards.size() << std::endl;
+//         std::cout << "Fetched page " << pagination.page
+//                   << " (" << page_result.items.size() << " cards)"
+//                   << ", total: " << all_cards.size() << std::endl;
 
-        if (!page_result.has_more) {
-            break;
-        }
+//         if (!page_result.has_more) {
+//             break;
+//         }
 
-        pagination.page++;
-        total_pages_fetched++;
-    }
+//         pagination.page++;
+//         total_pages_fetched++;
+//     }
 
-    std::cout << "Total cards fetched: " << all_cards.size() << std::endl;
-    return { last_status, all_cards };
-}
+//     std::cout << "Total cards fetched: " << all_cards.size() << std::endl;
+//     return { last_status, all_cards };
+// }
 
-// Improved paginated cards with better metadata handling
+// // Improved paginated cards with better metadata handling
+// Paginated_result<Card> get_cards_paginated(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const Pagination_params& pagination,
+//     const Card_filter_params& filters)
+// {
+//     Paginated_result<Card> result;
+    
+//     std::string query = Query_builder::build(pagination, filters);
+//     std::string target = api_path + "/cards" + query;
+    
+//     std::cout << "API Request: " << target << std::endl;
+    
+//     auto [status, response] = client.get(host, "443", target, token);
+    
+//     if (status != 200) {
+//         std::cerr << "Failed to fetch cards page " << pagination.page 
+//                   << ". Status: " << status << std::endl;
+//         if (!response.empty()) {
+//             std::cerr << "Response: " << response << std::endl;
+//         }
+//         return result;
+//     }
+    
+//     try {
+//         auto json = nlohmann::json::parse(response);
+        
+//         // Парсим элементы
+//         if (json.is_array()) {
+//             result.items = json.get<std::vector<Card>>();
+//         } else if (json.contains("cards") && json["cards"].is_array()) {
+//             result.items = json["cards"].get<std::vector<Card>>();
+//         } else if (json.contains("data") && json["data"].is_array()) {
+//             result.items = json["data"].get<std::vector<Card>>();
+//         } else {
+//             std::cerr << "Unexpected response format for cards" << std::endl;
+//             std::cerr << "Response: " << json.dump(2) << std::endl;
+//             return result;
+//         }
+        
+//         // Парсим метаданные пагинации
+//         result.page = pagination.page;
+//         result.per_page = pagination.per_page;
+//         result.total_count = result.items.size(); // временно
+        
+//         // Пытаемся извлечь метаданные пагинации из различных возможных мест
+//         if (json.contains("pagination")) {
+//             const auto& pagination_info = json["pagination"];
+//             if (pagination_info.contains("total")) {
+//                 result.total_count = pagination_info["total"].get<int>();
+//             }
+//             if (pagination_info.contains("per_page")) {
+//                 result.per_page = pagination_info["per_page"].get<int>();
+//             }
+//             if (pagination_info.contains("page")) {
+//                 result.page = pagination_info["page"].get<int>();
+//             }
+//             if (pagination_info.contains("pages")) {
+//                 result.total_pages = pagination_info["pages"].get<int>();
+//             }
+//             if (pagination_info.contains("has_more")) {
+//                 result.has_more = pagination_info["has_more"].get<bool>();
+//             }
+//         } else if (json.contains("meta")) {
+//             const auto& meta_info = json["meta"];
+//             if (meta_info.contains("total")) {
+//                 result.total_count = meta_info["total"].get<int>();
+//             }
+//             if (meta_info.contains("per_page")) {
+//                 result.per_page = meta_info["per_page"].get<int>();
+//             }
+//             if (meta_info.contains("current_page")) {
+//                 result.page = meta_info["current_page"].get<int>();
+//             }
+//             if (meta_info.contains("last_page")) {
+//                 result.total_pages = meta_info["last_page"].get<int>();
+//             }
+//         }
+        
+//         // Если не нашли метаданные, вычисляем has_more на основе размера страницы
+//         if (result.total_pages == 0) {
+//             result.total_pages = result.page; // временно
+//             result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+//         }
+        
+//         std::cout << "Page " << result.page << "/" << result.total_pages 
+//                   << ", items: " << result.items.size() 
+//                   << ", per_page: " << result.per_page 
+//                   << ", has_more: " << (result.has_more ? "yes" : "no") << std::endl;
+        
+//     } catch (const std::exception& e) {
+//         std::cerr << "Failed to parse cards paginated response: " << e.what() << std::endl;
+//         std::cerr << "Raw response: " << response << std::endl;
+//     }
+    
+//     return result;
+// }
+
+// // Get all cards with automatic pagination (улучшенная версия)
+// std::pair<int, std::vector<Card>> get_all_cards(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const Card_filter_params& filters,
+//     int page_size)
+// {
+//     std::vector<Card> all_cards;
+//     int last_status = 200;
+    
+//     Pagination_params pagination;
+//     pagination.per_page = page_size;
+//     pagination.page = 1;
+    
+//     int total_pages_fetched = 0;
+//     int max_pages = 1000; // защита от бесконечного цикла
+    
+//     std::cout << "Starting to fetch all cards..." << std::endl;
+    
+//     while (total_pages_fetched < max_pages) {
+//         std::cout << "Fetching page " << pagination.page << "..." << std::endl;
+        
+//         auto page_result = get_cards_paginated(client, host, api_path, token, 
+//                                              pagination, filters);
+        
+//         if (page_result.items.empty()) {
+//             std::cout << "No cards found on page " << pagination.page << std::endl;
+//             break;
+//         }
+        
+//         all_cards.insert(all_cards.end(), 
+//                         page_result.items.begin(), 
+//                         page_result.items.end());
+        
+//         std::cout << "Page " << pagination.page 
+//                   << ": " << page_result.items.size() << " cards" 
+//                   << ", total: " << all_cards.size() << std::endl;
+        
+//         // Проверяем условия завершения
+//         bool should_break = false;
+        
+//         // Если API возвращает информацию о total_pages
+//         if (page_result.total_pages > 0 && pagination.page >= page_result.total_pages) {
+//             std::cout << "Reached last page (" << page_result.total_pages << ")" << std::endl;
+//             should_break = true;
+//         }
+//         // Если на странице меньше карточек, чем размер страницы - это последняя страница
+//         else if (page_result.items.size() < static_cast<size_t>(pagination.per_page)) {
+//             std::cout << "Last page detected (fewer items than page size)" << std::endl;
+//             should_break = true;
+//         }
+//         // Если флаг has_more установлен в false
+//         else if (!page_result.has_more) {
+//             std::cout << "No more pages available" << std::endl;
+//             should_break = true;
+//         }
+        
+//         if (should_break) {
+//             break;
+//         }
+        
+//         pagination.page++;
+//         total_pages_fetched++;
+        
+//         // Задержка для соблюдения rate limits
+//         std::this_thread::sleep_for(std::chrono::milliseconds(50));
+//     }
+    
+//     std::cout << "Finished fetching cards. Total: " << all_cards.size() << std::endl;
+//     return {last_status, all_cards};
+// }
+
+
+// // Improved paginated users
+// Paginated_result<User> get_users_paginated(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const Pagination_params& pagination,
+//     const User_filter_params& filters)
+// {
+//     Paginated_result<User> result;
+
+//     std::string query = Query_builder::build(pagination, filters);
+//     std::string target = api_path + "/users" + query;
+
+//     auto [status, response] = client.get(host, "443", target, token);
+
+//     if (status != 200) {
+//         std::cerr << "Failed to fetch users page " << pagination.page
+//                   << ". Status: " << status << std::endl;
+//         return result;
+//     }
+
+//     try {
+//         auto json = nlohmann::json::parse(response);
+
+//         if (json.is_array()) {
+//             result.items = json.get<std::vector<User>>();
+//         } else {
+//             std::cerr << "Unexpected response format for users" << std::endl;
+//             return result;
+//         }
+
+//         // Для users API может не возвращать метаданные пагинации
+//         result.page = pagination.page;
+//         result.per_page = pagination.per_page;
+//         result.total_count = result.items.size();
+//         result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+
+//     } catch (const std::exception& e) {
+//         std::cerr << "Failed to parse users paginated response: " << e.what() << std::endl;
+//         std::cerr << "Raw response: " << response << std::endl;
+//     }
+
+//     return result;
+// }
+
+
+// Improved paginated cards with correct Kaiten API pagination
 Paginated_result<Card> get_cards_paginated(
     Http_client& client,
     const std::string& host,
@@ -519,7 +743,14 @@ Paginated_result<Card> get_cards_paginated(
 {
     Paginated_result<Card> result;
     
-    std::string query = Query_builder::build(pagination, filters);
+    // Убедимся, что limit не превышает максимум Kaiten API
+    Pagination_params safe_pagination = pagination;
+    if (safe_pagination.limit > 100) {
+        safe_pagination.limit = 100;
+        std::cout << "Warning: Kaiten API limit max is 100, using limit=100" << std::endl;
+    }
+    
+    std::string query = Query_builder::build(safe_pagination, filters);
     std::string target = api_path + "/cards" + query;
     
     std::cout << "API Request: " << target << std::endl;
@@ -527,8 +758,7 @@ Paginated_result<Card> get_cards_paginated(
     auto [status, response] = client.get(host, "443", target, token);
     
     if (status != 200) {
-        std::cerr << "Failed to fetch cards page " << pagination.page 
-                  << ". Status: " << status << std::endl;
+        std::cerr << "Failed to fetch cards. Status: " << status << std::endl;
         if (!response.empty()) {
             std::cerr << "Response: " << response << std::endl;
         }
@@ -541,64 +771,22 @@ Paginated_result<Card> get_cards_paginated(
         // Парсим элементы
         if (json.is_array()) {
             result.items = json.get<std::vector<Card>>();
-        } else if (json.contains("cards") && json["cards"].is_array()) {
-            result.items = json["cards"].get<std::vector<Card>>();
-        } else if (json.contains("data") && json["data"].is_array()) {
-            result.items = json["data"].get<std::vector<Card>>();
         } else {
             std::cerr << "Unexpected response format for cards" << std::endl;
             std::cerr << "Response: " << json.dump(2) << std::endl;
             return result;
         }
         
-        // Парсим метаданные пагинации
-        result.page = pagination.page;
-        result.per_page = pagination.per_page;
-        result.total_count = result.items.size(); // временно
+        // Устанавливаем пагинационные данные
+        result.limit = safe_pagination.limit;
+        result.offset = safe_pagination.offset;
+        result.total_count = result.items.size(); // Временное значение
         
-        // Пытаемся извлечь метаданные пагинации из различных возможных мест
-        if (json.contains("pagination")) {
-            const auto& pagination_info = json["pagination"];
-            if (pagination_info.contains("total")) {
-                result.total_count = pagination_info["total"].get<int>();
-            }
-            if (pagination_info.contains("per_page")) {
-                result.per_page = pagination_info["per_page"].get<int>();
-            }
-            if (pagination_info.contains("page")) {
-                result.page = pagination_info["page"].get<int>();
-            }
-            if (pagination_info.contains("pages")) {
-                result.total_pages = pagination_info["pages"].get<int>();
-            }
-            if (pagination_info.contains("has_more")) {
-                result.has_more = pagination_info["has_more"].get<bool>();
-            }
-        } else if (json.contains("meta")) {
-            const auto& meta_info = json["meta"];
-            if (meta_info.contains("total")) {
-                result.total_count = meta_info["total"].get<int>();
-            }
-            if (meta_info.contains("per_page")) {
-                result.per_page = meta_info["per_page"].get<int>();
-            }
-            if (meta_info.contains("current_page")) {
-                result.page = meta_info["current_page"].get<int>();
-            }
-            if (meta_info.contains("last_page")) {
-                result.total_pages = meta_info["last_page"].get<int>();
-            }
-        }
+        // Определяем, есть ли следующая страница
+        result.has_more = result.items.size() == static_cast<size_t>(safe_pagination.limit);
         
-        // Если не нашли метаданные, вычисляем has_more на основе размера страницы
-        if (result.total_pages == 0) {
-            result.total_pages = result.page; // временно
-            result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
-        }
-        
-        std::cout << "Page " << result.page << "/" << result.total_pages 
-                  << ", items: " << result.items.size() 
-                  << ", per_page: " << result.per_page 
+        std::cout << "Fetched " << result.items.size() << " cards "
+                  << "(offset=" << result.offset << ", limit=" << result.limit << ")"
                   << ", has_more: " << (result.has_more ? "yes" : "no") << std::endl;
         
     } catch (const std::exception& e) {
@@ -609,7 +797,7 @@ Paginated_result<Card> get_cards_paginated(
     return result;
 }
 
-// Get all cards with automatic pagination (улучшенная версия)
+// Get all cards with automatic pagination using offset/limit
 std::pair<int, std::vector<Card>> get_all_cards(
     Http_client& client,
     const std::string& host,
@@ -622,22 +810,21 @@ std::pair<int, std::vector<Card>> get_all_cards(
     int last_status = 200;
     
     Pagination_params pagination;
-    pagination.per_page = page_size;
-    pagination.page = 1;
+    pagination.limit = (page_size > 100) ? 100 : page_size; // Kaiten API max limit is 100
     
-    int total_pages_fetched = 0;
-    int max_pages = 1000; // защита от бесконечного цикла
+    int total_requests = 0;
+    int max_requests = 1000; // защита от бесконечного цикла
     
-    std::cout << "Starting to fetch all cards..." << std::endl;
+    std::cout << "Starting to fetch all cards using offset/limit pagination..." << std::endl;
     
-    while (total_pages_fetched < max_pages) {
-        std::cout << "Fetching page " << pagination.page << "..." << std::endl;
+    while (total_requests < max_requests) {
+        std::cout << "Fetching offset " << pagination.offset << ", limit " << pagination.limit << "..." << std::endl;
         
         auto page_result = get_cards_paginated(client, host, api_path, token, 
                                              pagination, filters);
         
         if (page_result.items.empty()) {
-            std::cout << "No cards found on page " << pagination.page << std::endl;
+            std::cout << "No cards found at offset " << pagination.offset << std::endl;
             break;
         }
         
@@ -645,35 +832,19 @@ std::pair<int, std::vector<Card>> get_all_cards(
                         page_result.items.begin(), 
                         page_result.items.end());
         
-        std::cout << "Page " << pagination.page 
+        std::cout << "Offset " << pagination.offset 
                   << ": " << page_result.items.size() << " cards" 
                   << ", total: " << all_cards.size() << std::endl;
         
-        // Проверяем условия завершения
-        bool should_break = false;
-        
-        // Если API возвращает информацию о total_pages
-        if (page_result.total_pages > 0 && pagination.page >= page_result.total_pages) {
-            std::cout << "Reached last page (" << page_result.total_pages << ")" << std::endl;
-            should_break = true;
-        }
-        // Если на странице меньше карточек, чем размер страницы - это последняя страница
-        else if (page_result.items.size() < static_cast<size_t>(pagination.per_page)) {
-            std::cout << "Last page detected (fewer items than page size)" << std::endl;
-            should_break = true;
-        }
-        // Если флаг has_more установлен в false
-        else if (!page_result.has_more) {
-            std::cout << "No more pages available" << std::endl;
-            should_break = true;
-        }
-        
-        if (should_break) {
+        // Проверяем, есть ли следующая страница
+        if (!page_result.has_more) {
+            std::cout << "No more cards available" << std::endl;
             break;
         }
         
-        pagination.page++;
-        total_pages_fetched++;
+        // Увеличиваем offset для следующего запроса
+        pagination.offset += pagination.limit;
+        total_requests++;
         
         // Задержка для соблюдения rate limits
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -683,8 +854,7 @@ std::pair<int, std::vector<Card>> get_all_cards(
     return {last_status, all_cards};
 }
 
-
-// Improved paginated users
+// Improved paginated users with correct pagination
 Paginated_result<User> get_users_paginated(
     Http_client& client,
     const std::string& host,
@@ -695,14 +865,19 @@ Paginated_result<User> get_users_paginated(
 {
     Paginated_result<User> result;
 
-    std::string query = Query_builder::build(pagination, filters);
+    // Убедимся, что limit не превышает максимум
+    Pagination_params safe_pagination = pagination;
+    if (safe_pagination.limit > 100) {
+        safe_pagination.limit = 100;
+    }
+
+    std::string query = Query_builder::build(safe_pagination, filters);
     std::string target = api_path + "/users" + query;
 
     auto [status, response] = client.get(host, "443", target, token);
 
     if (status != 200) {
-        std::cerr << "Failed to fetch users page " << pagination.page
-                  << ". Status: " << status << std::endl;
+        std::cerr << "Failed to fetch users. Status: " << status << std::endl;
         return result;
     }
 
@@ -716,11 +891,9 @@ Paginated_result<User> get_users_paginated(
             return result;
         }
 
-        // Для users API может не возвращать метаданные пагинации
-        result.page = pagination.page;
-        result.per_page = pagination.per_page;
-        result.total_count = result.items.size();
-        result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+        result.limit = safe_pagination.limit;
+        result.offset = safe_pagination.offset;
+        result.has_more = result.items.size() == static_cast<size_t>(safe_pagination.limit);
 
     } catch (const std::exception& e) {
         std::cerr << "Failed to parse users paginated response: " << e.what() << std::endl;
@@ -730,54 +903,7 @@ Paginated_result<User> get_users_paginated(
     return result;
 }
 
-// Get all users with automatic pagination
-std::pair<int, std::vector<User>> get_all_users(
-    Http_client& client,
-    const std::string& host,
-    const std::string& api_path,
-    const std::string& token,
-    const User_filter_params& filters,
-    int page_size)
-{
-    std::vector<User> all_users;
-    int last_status = 200;
-
-    Pagination_params pagination;
-    pagination.per_page = page_size;
-    pagination.page = 1;
-
-    int total_pages_fetched = 0;
-    int max_pages = 100;
-
-    while (total_pages_fetched < max_pages) {
-        auto page_result = get_users_paginated(client, host, api_path, token,
-            pagination, filters);
-
-        if (page_result.items.empty()) {
-            break;
-        }
-
-        all_users.insert(all_users.end(),
-            page_result.items.begin(),
-            page_result.items.end());
-
-        std::cout << "Fetched users page " << pagination.page
-                  << " (" << page_result.items.size() << " users)"
-                  << ", total: " << all_users.size() << std::endl;
-
-        if (!page_result.has_more) {
-            break;
-        }
-
-        pagination.page++;
-        total_pages_fetched++;
-    }
-
-    std::cout << "Total users fetched: " << all_users.size() << std::endl;
-    return { last_status, all_users };
-}
-
-// Boards pagination
+// Boards pagination with correct implementation
 Paginated_result<Board> get_boards_paginated(
     Http_client& client,
     const std::string& host,
@@ -787,14 +913,18 @@ Paginated_result<Board> get_boards_paginated(
 {
     Paginated_result<Board> result;
 
-    std::string query = Query_builder::build(pagination);
+    Pagination_params safe_pagination = pagination;
+    if (safe_pagination.limit > 100) {
+        safe_pagination.limit = 100;
+    }
+
+    std::string query = Query_builder::build(safe_pagination, Card_filter_params());
     std::string target = api_path + "/boards" + query;
 
     auto [status, response] = client.get(host, "443", target, token);
 
     if (status != 200) {
-        std::cerr << "Failed to fetch boards page " << pagination.page
-                  << ". Status: " << status << std::endl;
+        std::cerr << "Failed to fetch boards. Status: " << status << std::endl;
         return result;
     }
 
@@ -808,10 +938,9 @@ Paginated_result<Board> get_boards_paginated(
             return result;
         }
 
-        result.page = pagination.page;
-        result.per_page = pagination.per_page;
-        result.total_count = result.items.size();
-        result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+        result.limit = safe_pagination.limit;
+        result.offset = safe_pagination.offset;
+        result.has_more = result.items.size() == static_cast<size_t>(safe_pagination.limit);
 
     } catch (const std::exception& e) {
         std::cerr << "Failed to parse boards paginated response: " << e.what() << std::endl;
@@ -819,5 +948,95 @@ Paginated_result<Board> get_boards_paginated(
 
     return result;
 }
+
+// Get all users with automatic pagination
+// std::pair<int, std::vector<User>> get_all_users(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const User_filter_params& filters,
+//     int page_size)
+// {
+//     std::vector<User> all_users;
+//     int last_status = 200;
+
+//     Pagination_params pagination;
+//     pagination.per_page = page_size;
+//     pagination.page = 1;
+
+//     int total_pages_fetched = 0;
+//     int max_pages = 100;
+
+//     while (total_pages_fetched < max_pages) {
+//         auto page_result = get_users_paginated(client, host, api_path, token,
+//             pagination, filters);
+
+//         if (page_result.items.empty()) {
+//             break;
+//         }
+
+//         all_users.insert(all_users.end(),
+//             page_result.items.begin(),
+//             page_result.items.end());
+
+//         std::cout << "Fetched users page " << pagination.page
+//                   << " (" << page_result.items.size() << " users)"
+//                   << ", total: " << all_users.size() << std::endl;
+
+//         if (!page_result.has_more) {
+//             break;
+//         }
+
+//         pagination.page++;
+//         total_pages_fetched++;
+//     }
+
+//     std::cout << "Total users fetched: " << all_users.size() << std::endl;
+//     return { last_status, all_users };
+// }
+
+// // Boards pagination
+// Paginated_result<Board> get_boards_paginated(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const Pagination_params& pagination)
+// {
+//     Paginated_result<Board> result;
+
+//     std::string query = Query_builder::build(pagination);
+//     std::string target = api_path + "/boards" + query;
+
+//     auto [status, response] = client.get(host, "443", target, token);
+
+//     if (status != 200) {
+//         std::cerr << "Failed to fetch boards page " << pagination.page
+//                   << ". Status: " << status << std::endl;
+//         return result;
+//     }
+
+//     try {
+//         auto json = nlohmann::json::parse(response);
+
+//         if (json.is_array()) {
+//             result.items = json.get<std::vector<Board>>();
+//         } else {
+//             std::cerr << "Unexpected response format for boards" << std::endl;
+//             return result;
+//         }
+
+//         result.page = pagination.page;
+//         result.per_page = pagination.per_page;
+//         result.total_count = result.items.size();
+//         result.has_more = result.items.size() == static_cast<size_t>(pagination.per_page);
+
+//     } catch (const std::exception& e) {
+//         std::cerr << "Failed to parse boards paginated response: " << e.what() << std::endl;
+//     }
+
+//     return result;
+// }
 
 } // namespace kaiten

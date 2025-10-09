@@ -9,17 +9,28 @@
 
 namespace kaiten {
 
-// Параметры пагинации
+// Параметры пагинации Kaiten API
 struct Pagination_params {
-    int page = 1;
-    int per_page = 100;
-    int offset = 0;
-    int limit = 100;
+    int limit = 100;    // Максимум 100
+    int offset = 0;     // Смещение
     std::string sort_by;
     std::string sort_order; // "asc" or "desc"
     
+    // Для обратной совместимости
+    int page() const { return (offset / limit) + 1; }
+    int per_page() const { return limit; }
+    
+    void set_page(int page, int page_size) {
+        limit = page_size;
+        offset = (page - 1) * page_size;
+    }
+    
+    int get_current_page() const {
+        return (offset / limit) + 1;
+    }
+    
     Pagination_params() = default;
-    explicit Pagination_params(int page_size) : per_page(page_size), limit(page_size) {}
+    explicit Pagination_params(int page_size) : limit(page_size) {}
 };
 
 // Параметры фильтрации карточек
@@ -36,13 +47,13 @@ struct Card_filter_params {
     std::optional<bool> archived;
     std::optional<bool> blocked;
     std::optional<bool> asap;
-    std::optional<std::string> search; // полнотекстовый поиск
+    std::optional<int> condition; // 1 - on board, 2 - archived
+    std::optional<std::string> search;
     std::optional<std::string> created_after;
     std::optional<std::string> created_before;
     std::optional<std::string> updated_after;
     std::optional<std::string> updated_before;
     
-    // Дополнительные параметры
     std::map<std::string, std::string> custom_filters;
 };
 
@@ -50,32 +61,36 @@ struct Card_filter_params {
 struct User_filter_params {
     std::optional<bool> activated;
     std::optional<bool> virtual_user;
-    std::optional<std::string> search; // поиск по имени/email
+    std::optional<std::string> search;
 };
 
-// Результат пагинации с метаданными
+// Результат пагинации
 template<typename T>
 struct Paginated_result {
     std::vector<T> items;
     int total_count = 0;
-    int page = 1;
-    int per_page = 0;
-    int total_pages = 0;
+    int limit = 0;
+    int offset = 0;
     bool has_more = false;
-    std::optional<std::string> next_page_url;
-    std::optional<std::string> prev_page_url;
+    
+    // Для обратной совместимости
+    int page() const { return (offset / limit) + 1; }
+    int per_page() const { return limit; }
+    int total_pages() const { 
+        return total_count > 0 ? (total_count + limit - 1) / limit : 0; 
+    }
 };
 
-// Утилиты для построения query string
+// Утилиты для построения query string Kaiten API
 class Query_builder {
 public:
     static std::string build(const Pagination_params& pagination, 
                             const Card_filter_params& filters = {}) {
         std::stringstream ss;
-        ss << "?per_page=" << pagination.per_page;
+        ss << "?limit=" << pagination.limit;
         
-        if (pagination.page > 1) {
-            ss << "&page=" << pagination.page;
+        if (pagination.offset > 0) {
+            ss << "&offset=" << pagination.offset;
         }
         
         if (!pagination.sort_by.empty()) {
@@ -98,6 +113,7 @@ public:
         add_filter(ss, "archived", filters.archived);
         add_filter(ss, "blocked", filters.blocked);
         add_filter(ss, "asap", filters.asap);
+        add_filter(ss, "condition", filters.condition);
         add_filter(ss, "search", filters.search);
         add_filter(ss, "created_after", filters.created_after);
         add_filter(ss, "created_before", filters.created_before);
@@ -115,15 +131,33 @@ public:
     static std::string build(const Pagination_params& pagination,
                             const User_filter_params& filters) {
         std::stringstream ss;
-        ss << "?per_page=" << pagination.per_page;
+        ss << "?limit=" << pagination.limit;
         
-        if (pagination.page > 1) {
-            ss << "&page=" << pagination.page;
+        if (pagination.offset > 0) {
+            ss << "&offset=" << pagination.offset;
         }
         
         add_filter(ss, "activated", filters.activated);
         add_filter(ss, "virtual", filters.virtual_user);
         add_filter(ss, "search", filters.search);
+        
+        return ss.str();
+    }
+
+    static std::string build(const Pagination_params& pagination) {
+        std::stringstream ss;
+        ss << "?limit=" << pagination.limit;
+        
+        if (pagination.offset > 0) {
+            ss << "&offset=" << pagination.offset;
+        }
+        
+        if (!pagination.sort_by.empty()) {
+            ss << "&sort=" << pagination.sort_by;
+            if (!pagination.sort_order.empty()) {
+                ss << "&order=" << pagination.sort_order;
+            }
+        }
         
         return ss.str();
     }

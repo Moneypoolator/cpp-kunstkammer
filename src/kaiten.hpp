@@ -84,46 +84,46 @@ Paginated_result<Board> get_boards_paginated(
     const std::string& token,
     const Pagination_params& pagination = {});
 
-// Utility functions for automatic pagination
-template<typename T, typename Func>
-Paginated_result<T> fetch_all_pages(
-    Http_client& client,
-    const std::string& host,
-    const std::string& api_path,
-    const std::string& token,
-    const std::string& endpoint,
-    Func parser,
-    const Pagination_params& initial_pagination = {})
-{
-    Paginated_result<T> result;
-    Pagination_params pagination = initial_pagination;
+// // Utility functions for automatic pagination
+// template<typename T, typename Func>
+// Paginated_result<T> fetch_all_pages(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const std::string& endpoint,
+//     Func parser,
+//     const Pagination_params& initial_pagination = {})
+// {
+//     Paginated_result<T> result;
+//     Pagination_params pagination = initial_pagination;
     
-    do {
-        auto page_result = fetch_single_page<T>(client, host, api_path, token, 
-                                               endpoint, parser, pagination);
+//     do {
+//         auto page_result = fetch_single_page<T>(client, host, api_path, token, 
+//                                                endpoint, parser, pagination);
         
-        if (page_result.items.empty()) {
-            break;
-        }
+//         if (page_result.items.empty()) {
+//             break;
+//         }
         
-        result.items.insert(result.items.end(), 
-                          page_result.items.begin(), 
-                          page_result.items.end());
-        result.total_count += page_result.items.size();
+//         result.items.insert(result.items.end(), 
+//                           page_result.items.begin(), 
+//                           page_result.items.end());
+//         result.total_count += page_result.items.size();
         
-        // Обновляем метаданные из первой страницы
-        if (pagination.page == 1) {
-            result.per_page = page_result.per_page;
-            result.total_pages = page_result.total_pages;
-        }
+//         // Обновляем метаданные из первой страницы
+//         if (pagination.page == 1) {
+//             result.per_page = page_result.per_page;
+//             result.total_pages = page_result.total_pages;
+//         }
         
-        pagination.page++;
-        result.has_more = page_result.has_more;
+//         pagination.page++;
+//         result.has_more = page_result.has_more;
         
-    } while (result.has_more && pagination.page <= result.total_pages);
+//     } while (result.has_more && pagination.page <= result.total_pages);
     
-    return result;
-}
+//     return result;
+// }
 
 } // namespace kaiten
 

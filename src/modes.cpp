@@ -9,7 +9,7 @@
 #include "kaiten.hpp"
 #include "pagination.hpp"
 
-// Улучшенная функция пагинации с поддержкой всех параметров
+// Улучшенная функция пагинации с поддержкой offset/limit
 namespace {
 
 template <typename T, typename Client, typename Fetcher, typename Handler>
@@ -27,7 +27,18 @@ bool paginate_with_metadata(
     int pages_processed = 0;
     int total_items = 0;
 
+    // Вычисляем начальный offset на основе limit (для обратной совместимости)
+    // Если offset уже установлен, используем его, иначе вычисляем из page-based логики
+    int current_offset = params.offset;
+
+    // Для обратной совместимости: если хотим начать с определенной "страницы",
+    // можно установить offset соответствующим образом
+    // current_offset = (desired_page - 1) * params.limit;
+
     while (pages_processed < max_pages) {
+        // Устанавливаем текущий offset
+        params.offset = current_offset;
+
         auto page_result = fetcher(client, host, api_path, token, params);
 
         if (page_result.items.empty()) {
@@ -38,8 +49,12 @@ bool paginate_with_metadata(
         handle_items(page_result.items, page_result);
 
         total_items += page_result.items.size();
-        std::cout << "Page " << params.page << ": " << page_result.items.size()
-                  << " items, total: " << total_items;
+
+        // Вычисляем текущую "страницу" для вывода (для удобства)
+        int current_page = (current_offset / params.limit) + 1;
+
+        std::cout << "Page " << current_page << " (offset " << current_offset << "): "
+                  << page_result.items.size() << " items, total: " << total_items;
 
         if (page_result.total_count > 0) {
             std::cout << " / " << page_result.total_count;
@@ -47,12 +62,69 @@ bool paginate_with_metadata(
         std::cout << std::endl;
 
         // Проверяем, есть ли следующая страница
-        if (!page_result.has_more || params.page >= page_result.total_pages) {
+        if (!page_result.has_more) {
             break;
         }
 
-        params.page++;
+        // Увеличиваем offset для следующего запроса
+        current_offset += params.limit;
         pages_processed++;
+
+        // Небольшая задержка между запросами
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    std::cout << "Completed: " << total_items << " total items" << std::endl;
+    return total_items > 0;
+}
+
+// Новая функция для явной работы с offset/limit (рекомендуется)
+template <typename T, typename Client, typename Fetcher, typename Handler>
+bool paginate_with_offset_limit(
+    Client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    Fetcher fetcher,
+    Handler handle_items,
+    const kaiten::Pagination_params& initial_params = {},
+    int max_requests = 1000)
+{
+    kaiten::Pagination_params params = initial_params;
+    int requests_processed = 0;
+    int total_items = 0;
+
+    while (requests_processed < max_requests) {
+        auto page_result = fetcher(client, host, api_path, token, params);
+
+        if (page_result.items.empty()) {
+            break;
+        }
+
+        // Обрабатываем элементы
+        handle_items(page_result.items, page_result);
+
+        total_items += page_result.items.size();
+
+        std::cout << "Offset " << params.offset << ", limit " << params.limit << ": "
+                  << page_result.items.size() << " items, total: " << total_items;
+
+        if (page_result.total_count > 0) {
+            std::cout << " / " << page_result.total_count;
+        }
+        std::cout << std::endl;
+
+        // Проверяем, есть ли следующая страница
+        if (!page_result.has_more) {
+            break;
+        }
+
+        // Увеличиваем offset для следующего запроса
+        params.offset += params.limit;
+        requests_processed++;
+
+        // Небольшая задержка между запросами
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     std::cout << "Completed: " << total_items << " total items" << std::endl;
@@ -87,56 +159,23 @@ int handle_get_card(Http_client& client, const std::string& host,
     return 1;
 }
 
-/*
-// Реализация handle_cards_list
-int handle_cards_list(Http_client& client, const std::string& host,
-                     const std::string& api_path, const std::string& token)
-{
-    kaiten::PaginationParams params;
-    params.per_page = 100;
-    params.sort_by = "updated";
-    params.sort_order = "desc";
-
-    auto card_fetcher = [](Http_client& client, const std::string& host,
-                          const std::string& api_path, const std::string& token,
-                          const kaiten::PaginationParams& pagination) {
-        return kaiten::get_cards_paginated(client, host, api_path, token, pagination);
-    };
-
-    auto card_handler = [](const std::vector<Card>& cards,
-                          const kaiten::PaginatedResult<Card>& result) {
-        for (const auto& card : cards) {
-            std::cout << "#" << card.number << " [" << card.id << "] "
-                      << card.title << " (" << card.type
-                      << ", size=" << card.size
-                      << ", updated: " << card.updated.toIso8601()
-                      << ", state: " << card.state << ")" << std::endl;
-        }
-    };
-
-    std::cout << "Fetching cards with pagination..." << std::endl;
-    return paginate_with_metadata<Card>(client, host, api_path, token,
-                                       card_fetcher, card_handler, params) ? 0 : 1;
-}
-*/
-
-// Реализация handle_cards_list с полной пагинацией
+// Реализация handle_cards_list с правильной пагинацией offset/limit
 int handle_cards_list(Http_client& client, const std::string& host,
     const std::string& api_path, const std::string& token)
 {
     kaiten::Pagination_params params;
-    params.per_page = 100; // Размер страницы
+    params.limit = 100; // Kaiten API максимум
     params.sort_by = "updated";
     params.sort_order = "desc";
 
     std::vector<Card> all_cards;
-    int total_pages = 0;
-    int current_page = 1;
+    int offset = 0;
 
-    std::cout << "Fetching all cards with pagination..." << std::endl;
+    std::cout << "Fetching all cards using Kaiten API pagination (offset/limit)..." << std::endl;
 
     while (true) {
-        std::cout << "Fetching page " << current_page << "..." << std::endl;
+        params.offset = offset;
+        std::cout << "Fetching offset " << offset << ", limit " << params.limit << "..." << std::endl;
 
         auto page_result = kaiten::get_cards_paginated(client, host, api_path, token, params);
 
@@ -150,25 +189,18 @@ int handle_cards_list(Http_client& client, const std::string& host,
             page_result.items.begin(),
             page_result.items.end());
 
-        std::cout << "Page " << current_page << ": " << page_result.items.size()
+        std::cout << "Offset " << offset << ": " << page_result.items.size()
                   << " cards, total: " << all_cards.size() << std::endl;
 
-        // Обновляем общее количество страниц из первой страницы
-        if (current_page == 1 && page_result.total_pages > 0) {
-            total_pages = page_result.total_pages;
-            std::cout << "Total pages: " << total_pages << std::endl;
-        }
-
         // Проверяем, есть ли следующая страница
-        if (!page_result.has_more || (total_pages > 0 && current_page >= total_pages) || page_result.items.size() < static_cast<size_t>(params.per_page)) {
+        if (!page_result.has_more) {
             break;
         }
 
-        // Переходим к следующей странице
-        current_page++;
-        params.page = current_page;
+        // Увеличиваем offset для следующего запроса
+        offset += params.limit;
 
-        // Небольшая задержка между запросами для соблюдения rate limits
+        // Небольшая задержка между запросами
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
@@ -217,65 +249,7 @@ int handle_cards_list(Http_client& client, const std::string& host,
     return all_cards.empty() ? 1 : 0;
 }
 
-// Альтернативная реализация handle_cards_list (более простая)
-int handle_cards_list_2(Http_client& client, const std::string& host,
-    const std::string& api_path, const std::string& token)
-{
-    kaiten::Card_filter_params no_filters; // Пустые фильтры
-    int page_size = 100;
 
-    std::cout << "Fetching all cards..." << std::endl;
-
-    auto [status, all_cards] = kaiten::get_all_cards(client, host, api_path, token,
-        no_filters, page_size);
-
-    if (status != 200) {
-        std::cerr << "Failed to fetch cards. Status: " << status << std::endl;
-        return 1;
-    }
-
-    std::cout << "\n=== All Cards Results ===" << std::endl;
-    std::cout << "Total cards fetched: " << all_cards.size() << std::endl;
-
-    // Выводим статистику
-    std::map<std::string, int> type_stats;
-    std::map<std::string, int> state_stats;
-    std::map<std::string, int> board_stats;
-
-    for (const auto& card : all_cards) {
-        type_stats[card.type.empty() ? "Unknown" : card.type]++;
-        state_stats[card.state.empty() ? "Unknown" : card.state]++;
-        board_stats[card.board.title.empty() ? "Unknown" : card.board.title]++;
-
-        // Выводим информацию о карточке
-        std::cout << "#" << card.number << " [" << card.id << "] "
-                  << card.title << " (" << card.type
-                  << ", size=" << card.size
-                  << ", state=" << card.state
-                  << ", board=" << card.board.title
-                  << ", updated: " << card.updated.toIso8601() << ")" << std::endl;
-    }
-
-    // Выводим итоговую статистику
-    std::cout << "\n=== Final Statistics ===" << std::endl;
-
-    std::cout << "By type:" << std::endl;
-    for (const auto& [type, count] : type_stats) {
-        std::cout << "  " << type << ": " << count << std::endl;
-    }
-
-    std::cout << "By state:" << std::endl;
-    for (const auto& [state, count] : state_stats) {
-        std::cout << "  " << state << ": " << count << std::endl;
-    }
-
-    std::cout << "By board:" << std::endl;
-    for (const auto& [board, count] : board_stats) {
-        std::cout << "  " << board << ": " << count << std::endl;
-    }
-
-    return all_cards.empty() ? 1 : 0;
-}
 
 // Реализация handle_cards_filter
 int handle_cards_filter(Http_client& client, const std::string& host,
@@ -283,8 +257,8 @@ int handle_cards_filter(Http_client& client, const std::string& host,
     const std::map<std::string, std::string>& filters)
 {
     kaiten::Card_filter_params filter_params;
-    kaiten::Pagination_params pagination;
-    pagination.per_page = 100;
+    kaiten::Pagination_params pagination(100);
+    // pagination.per_page = 100;
 
     // Преобразуем простые фильтры в структурированные
     for (const auto& [key, value] : filters) {
@@ -332,7 +306,7 @@ int handle_cards_filter(Http_client& client, const std::string& host,
     }
 
     auto [status, cards] = kaiten::get_all_cards(client, host, api_path, token,
-        filter_params, pagination.per_page);
+        filter_params, pagination.per_page());
 
     if (status == 200) {
         std::cout << "\n=== Filtered Cards Results ===" << std::endl;
@@ -372,38 +346,7 @@ int handle_cards_filter(Http_client& client, const std::string& host,
     return 1;
 }
 
-// Реализация handle_users_list
-int handle_users_list(Http_client& client, const std::string& host,
-    const std::string& api_path, const std::string& token)
-{
-    kaiten::Pagination_params params;
-    params.per_page = 100;
 
-    auto user_fetcher = [](Http_client& client, const std::string& host,
-                            const std::string& api_path, const std::string& token,
-                            const kaiten::Pagination_params& pagination) {
-        kaiten::User_filter_params user_filters;
-        return kaiten::get_users_paginated(client, host, api_path, token, pagination, user_filters);
-    };
-
-    auto user_handler = [](const std::vector<User>& users,
-                            const kaiten::Paginated_result<User>& result) {
-        for (const auto& user : users) {
-            std::cout << "[" << user.id << "] " << user.full_name
-                      << " (" << user.email << ")"
-                      << " - " << user.username
-                      << (user.activated ? " [ACTIVE]" : " [INACTIVE]")
-                      << (user.virtual_user ? " [VIRTUAL]" : "")
-                      << std::endl;
-        }
-    };
-
-    std::cout << "Fetching users with pagination..." << std::endl;
-    return paginate_with_metadata<User>(client, host, api_path, token,
-               user_fetcher, user_handler, params)
-             ? 0
-             : 1;
-}
 
 // Реализация handle_get_user
 int handle_get_user(Http_client& client, const std::string& host,
@@ -622,12 +565,47 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     return 1;
 }
 
-// Новая функция для получения досок
+
+
+// Реализация handle_users_list с новой пагинацией
+int handle_users_list(Http_client& client, const std::string& host,
+    const std::string& api_path, const std::string& token)
+{
+    kaiten::Pagination_params params;
+    params.limit = 100; // Kaiten API максимум
+
+    auto user_fetcher = [](Http_client& client, const std::string& host,
+                            const std::string& api_path, const std::string& token,
+                            const kaiten::Pagination_params& pagination) {
+        kaiten::User_filter_params user_filters;
+        return kaiten::get_users_paginated(client, host, api_path, token, pagination, user_filters);
+    };
+
+    auto user_handler = [](const std::vector<User>& users,
+                            const kaiten::Paginated_result<User>& result) {
+        for (const auto& user : users) {
+            std::cout << "[" << user.id << "] " << user.full_name
+                      << " (" << user.email << ")"
+                      << " - " << user.username
+                      << (user.activated ? " [ACTIVE]" : " [INACTIVE]")
+                      << (user.virtual_user ? " [VIRTUAL]" : "")
+                      << std::endl;
+        }
+    };
+
+    std::cout << "Fetching users with offset/limit pagination..." << std::endl;
+    return paginate_with_offset_limit<User>(client, host, api_path, token,
+               user_fetcher, user_handler, params)
+             ? 0
+             : 1;
+}
+
+// Реализация handle_boards_list с новой пагинацией
 int handle_boards_list(Http_client& client, const std::string& host,
     const std::string& api_path, const std::string& token)
 {
     kaiten::Pagination_params params;
-    params.per_page = 50;
+    params.limit = 50; // Kaiten API максимум
 
     auto board_fetcher = [](Http_client& client, const std::string& host,
                              const std::string& api_path, const std::string& token,
@@ -646,9 +624,69 @@ int handle_boards_list(Http_client& client, const std::string& host,
         }
     };
 
-    std::cout << "Fetching boards with pagination..." << std::endl;
-    return paginate_with_metadata<Board>(client, host, api_path, token,
+    std::cout << "Fetching boards with offset/limit pagination..." << std::endl;
+    return paginate_with_offset_limit<Board>(client, host, api_path, token,
                board_fetcher, board_handler, params)
              ? 0
              : 1;
+}
+
+// Альтернативная реализация handle_cards_list с использованием новой пагинации
+int handle_cards_list_simple(Http_client& client, const std::string& host,
+    const std::string& api_path, const std::string& token)
+{
+    kaiten::Card_filter_params no_filters;
+    int page_size = 100;
+
+    std::cout << "Fetching all cards with offset/limit pagination..." << std::endl;
+
+    auto [status, all_cards] = kaiten::get_all_cards(client, host, api_path, token,
+        no_filters, page_size);
+
+    if (status != 200) {
+        std::cerr << "Failed to fetch cards. Status: " << status << std::endl;
+        return 1;
+    }
+
+    std::cout << "\n=== All Cards Results ===" << std::endl;
+    std::cout << "Total cards fetched: " << all_cards.size() << std::endl;
+
+    // Выводим статистику
+    std::map<std::string, int> type_stats;
+    std::map<std::string, int> state_stats;
+    std::map<std::string, int> board_stats;
+
+    for (const auto& card : all_cards) {
+        type_stats[card.type.empty() ? "Unknown" : card.type]++;
+        state_stats[card.state.empty() ? "Unknown" : card.state]++;
+        board_stats[card.board.title.empty() ? "Unknown" : card.board.title]++;
+
+        // Выводим информацию о карточке
+        std::cout << "#" << card.number << " [" << card.id << "] "
+                  << card.title << " (" << card.type
+                  << ", size=" << card.size
+                  << ", state=" << card.state
+                  << ", board=" << card.board.title
+                  << ", updated: " << card.updated.toIso8601() << ")" << std::endl;
+    }
+
+    // Выводим итоговую статистику
+    std::cout << "\n=== Final Statistics ===" << std::endl;
+
+    std::cout << "By type:" << std::endl;
+    for (const auto& [type, count] : type_stats) {
+        std::cout << "  " << type << ": " << count << std::endl;
+    }
+
+    std::cout << "By state:" << std::endl;
+    for (const auto& [state, count] : state_stats) {
+        std::cout << "  " << state << ": " << count << std::endl;
+    }
+
+    std::cout << "By board:" << std::endl;
+    for (const auto& [board, count] : board_stats) {
+        std::cout << "  " << board << ": " << count << std::endl;
+    }
+
+    return all_cards.empty() ? 1 : 0;
 }
