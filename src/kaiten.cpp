@@ -1,10 +1,9 @@
-#include "kaiten.hpp"
-
 #include <iostream>
-#include <nlohmann/json.hpp>
-// #include <sstream>
 #include <string>
 #include <utility>
+#include <nlohmann/json.hpp>
+
+#include "kaiten.hpp"
 
 #include "cache.hpp"
 #include "card.hpp"
@@ -218,7 +217,7 @@ std::pair<int, Card> get_card(
 
     // Пробуем получить из кэша по номеру
     if (id_or_number.find("CARD-") == 0 || id_or_number.find("card-") == 0) {
-        auto cached = ApiCache::card_number_cache().get(id_or_number);
+        auto cached = Api_cache::card_number_cache().get(id_or_number);
         if (cached.has_value()) {
             std::cout << "Cache HIT for card number: " << id_or_number << std::endl;
             return { 200, cached.value() };
@@ -227,7 +226,7 @@ std::pair<int, Card> get_card(
         // Пробуем получить из кэша по ID
         try {
             std::int64_t card_id = std::stoll(id_or_number);
-            auto cached = ApiCache::card_cache().get(card_id);
+            auto cached = Api_cache::card_cache().get(card_id);
             if (cached.has_value()) {
                 std::cout << "Cache HIT for card ID: " << card_id << std::endl;
                 return { 200, cached.value() };
@@ -248,8 +247,8 @@ std::pair<int, Card> get_card(
             Card card = j.get<Card>();
 
             // Сохраняем в кэш
-            ApiCache::card_cache().put(card.id, card);
-            ApiCache::card_number_cache().put(card.number, card);
+            Api_cache::card_cache().put(card.id, card);
+            Api_cache::card_number_cache().put(card.number, card);
 
             print_card_details(card, true);
             return { status, card };
@@ -288,7 +287,7 @@ std::pair<int, User> get_user(
     std::int64_t user_id)
 {
     // Пробуем получить из кэша
-    auto cached = ApiCache::user_cache().get(user_id);
+    auto cached = Api_cache::user_cache().get(user_id);
     if (cached.has_value()) {
         std::cout << "Cache HIT for user ID: " << user_id << std::endl;
         return { 200, cached.value() };
@@ -305,7 +304,7 @@ std::pair<int, User> get_user(
             User user = j.get<User>();
 
             // Сохраняем в кэш
-            ApiCache::user_cache().put(user.id, user);
+            Api_cache::user_cache().put(user.id, user);
 
             return { status, user };
         } catch (const std::exception& e) {
@@ -336,8 +335,8 @@ std::pair<int, User> get_user(
 
 // Кэширование для списков с ключом на основе параметров
 std::string generate_cache_key(const std::string& endpoint,
-    const PaginationParams& pagination,
-    const CardFilterParams& filters)
+    const Pagination_params& pagination,
+    const Card_filter_params& filters)
 {
     std::stringstream key;
     key << endpoint << "_page_" << pagination.page << "_size_" << pagination.per_page;
@@ -363,23 +362,23 @@ std::string generate_cache_key(const std::string& endpoint,
 }
 
 // Improved paginated cards with metadata support
-PaginatedResult<Card> get_cards_paginated_0(
+Paginated_result<Card> get_cards_paginated_0(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const PaginationParams& pagination,
-    const CardFilterParams& filters)
+    const Pagination_params& pagination,
+    const Card_filter_params& filters)
 {
     // Генерируем ключ кэша
     std::string cache_key = generate_cache_key("cards", pagination, filters);
     
     // Пробуем получить из кэша списков
-    auto cached = ApiCache::list_cache().get(cache_key);
+    auto cached = Api_cache::list_cache().get(cache_key);
     if (cached.has_value()) {
         std::cout << "Cache HIT for cards list: " << cache_key << std::endl;
         try {
-            PaginatedResult<Card> result;
+            Paginated_result<Card> result;
             result.items = cached->get<std::vector<Card>>();
             // Для списков не кэшируем полные метаданные пагинации
             result.page = pagination.page;
@@ -394,9 +393,9 @@ PaginatedResult<Card> get_cards_paginated_0(
     
     std::cout << "Cache MISS for cards list: " << cache_key << std::endl;
 
-    PaginatedResult<Card> result;
+    Paginated_result<Card> result;
 
-    std::string query = QueryBuilder::build(pagination, filters);
+    std::string query = Query_builder::build(pagination, filters);
     std::string target = api_path + "/cards" + query;
 
     auto [status, response] = client.get(host, "443", target, token);
@@ -422,12 +421,12 @@ PaginatedResult<Card> get_cards_paginated_0(
 
         // Сохраняем в кэш списков
         nlohmann::json cache_data = result.items;
-        ApiCache::list_cache().put(cache_key, cache_data);
+        Api_cache::list_cache().put(cache_key, cache_data);
         
         // Кэшируем отдельные карточки
         for (const auto& card : result.items) {
-            ApiCache::card_cache().put(card.id, card);
-            ApiCache::card_number_cache().put(card.number, card);
+            Api_cache::card_cache().put(card.id, card);
+            Api_cache::card_number_cache().put(card.number, card);
         }
 
         // Парсим метаданные пагинации
@@ -468,13 +467,13 @@ std::pair<int, std::vector<Card>> get_all_cards_0(
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const CardFilterParams& filters,
+    const Card_filter_params& filters,
     int page_size)
 {
     std::vector<Card> all_cards;
     int last_status = 200;
 
-    PaginationParams pagination;
+    Pagination_params pagination;
     pagination.per_page = page_size;
     pagination.page = 1;
 
@@ -510,17 +509,17 @@ std::pair<int, std::vector<Card>> get_all_cards_0(
 }
 
 // Improved paginated cards with better metadata handling
-PaginatedResult<Card> get_cards_paginated(
+Paginated_result<Card> get_cards_paginated(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const PaginationParams& pagination,
-    const CardFilterParams& filters)
+    const Pagination_params& pagination,
+    const Card_filter_params& filters)
 {
-    PaginatedResult<Card> result;
+    Paginated_result<Card> result;
     
-    std::string query = QueryBuilder::build(pagination, filters);
+    std::string query = Query_builder::build(pagination, filters);
     std::string target = api_path + "/cards" + query;
     
     std::cout << "API Request: " << target << std::endl;
@@ -616,13 +615,13 @@ std::pair<int, std::vector<Card>> get_all_cards(
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const CardFilterParams& filters,
+    const Card_filter_params& filters,
     int page_size)
 {
     std::vector<Card> all_cards;
     int last_status = 200;
     
-    PaginationParams pagination;
+    Pagination_params pagination;
     pagination.per_page = page_size;
     pagination.page = 1;
     
@@ -686,17 +685,17 @@ std::pair<int, std::vector<Card>> get_all_cards(
 
 
 // Improved paginated users
-PaginatedResult<User> get_users_paginated(
+Paginated_result<User> get_users_paginated(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const PaginationParams& pagination,
-    const UserFilterParams& filters)
+    const Pagination_params& pagination,
+    const User_filter_params& filters)
 {
-    PaginatedResult<User> result;
+    Paginated_result<User> result;
 
-    std::string query = QueryBuilder::build(pagination, filters);
+    std::string query = Query_builder::build(pagination, filters);
     std::string target = api_path + "/users" + query;
 
     auto [status, response] = client.get(host, "443", target, token);
@@ -737,13 +736,13 @@ std::pair<int, std::vector<User>> get_all_users(
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const UserFilterParams& filters,
+    const User_filter_params& filters,
     int page_size)
 {
     std::vector<User> all_users;
     int last_status = 200;
 
-    PaginationParams pagination;
+    Pagination_params pagination;
     pagination.per_page = page_size;
     pagination.page = 1;
 
@@ -779,16 +778,16 @@ std::pair<int, std::vector<User>> get_all_users(
 }
 
 // Boards pagination
-PaginatedResult<Board> get_boards_paginated(
+Paginated_result<Board> get_boards_paginated(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const PaginationParams& pagination)
+    const Pagination_params& pagination)
 {
-    PaginatedResult<Board> result;
+    Paginated_result<Board> result;
 
-    std::string query = QueryBuilder::build(pagination, CardFilterParams {});
+    std::string query = Query_builder::build(pagination);
     std::string target = api_path + "/boards" + query;
 
     auto [status, response] = client.get(host, "443", target, token);

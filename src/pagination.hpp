@@ -10,7 +10,7 @@
 namespace kaiten {
 
 // Параметры пагинации
-struct PaginationParams {
+struct Pagination_params {
     int page = 1;
     int per_page = 100;
     int offset = 0;
@@ -18,12 +18,12 @@ struct PaginationParams {
     std::string sort_by;
     std::string sort_order; // "asc" or "desc"
     
-    PaginationParams() = default;
-    PaginationParams(int page_size) : per_page(page_size), limit(page_size) {}
+    Pagination_params() = default;
+    explicit Pagination_params(int page_size) : per_page(page_size), limit(page_size) {}
 };
 
 // Параметры фильтрации карточек
-struct CardFilterParams {
+struct Card_filter_params {
     std::optional<std::int64_t> board_id;
     std::optional<std::int64_t> lane_id;
     std::optional<std::int64_t> column_id;
@@ -47,7 +47,7 @@ struct CardFilterParams {
 };
 
 // Параметры фильтрации пользователей
-struct UserFilterParams {
+struct User_filter_params {
     std::optional<bool> activated;
     std::optional<bool> virtual_user;
     std::optional<std::string> search; // поиск по имени/email
@@ -55,7 +55,7 @@ struct UserFilterParams {
 
 // Результат пагинации с метаданными
 template<typename T>
-struct PaginatedResult {
+struct Paginated_result {
     std::vector<T> items;
     int total_count = 0;
     int page = 1;
@@ -67,10 +67,10 @@ struct PaginatedResult {
 };
 
 // Утилиты для построения query string
-class QueryBuilder {
+class Query_builder {
 public:
-    static std::string build(const PaginationParams& pagination, 
-                            const CardFilterParams& filters = {}) {
+    static std::string build(const Pagination_params& pagination, 
+                            const Card_filter_params& filters = {}) {
         std::stringstream ss;
         ss << "?per_page=" << pagination.per_page;
         
@@ -112,8 +112,8 @@ public:
         return ss.str();
     }
     
-    static std::string build(const PaginationParams& pagination,
-                            const UserFilterParams& filters) {
+    static std::string build(const Pagination_params& pagination,
+                            const User_filter_params& filters) {
         std::stringstream ss;
         ss << "?per_page=" << pagination.per_page;
         

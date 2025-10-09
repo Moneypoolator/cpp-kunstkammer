@@ -22,7 +22,7 @@ using tcp = net::ip::tcp;
 class Http_client {
 public:
     Http_client(net::io_context& ioc, ssl::context& ctx, 
-        kaiten::RateLimiter* rate_limiter = &kaiten::global_rate_limiter);
+        kaiten::Rate_limiter* rate_limiter = &kaiten::global_rate_limiter);
 
     // Returns pair<status_code, response_body>
     std::pair<int, std::string> post(const std::string& host, const std::string& port, const std::string& target, const std::string& body, const std::string& token);
@@ -30,7 +30,7 @@ public:
     std::pair<int, std::string> patch(const std::string& host, const std::string& port, const std::string& target, const std::string& body, const std::string& token);
 
     // Установить кастомный rate limiter
-    void set_rate_limiter(kaiten::RateLimiter* limiter) {
+    void set_rate_limiter(kaiten::Rate_limiter* limiter) {
         _rate_limiter = limiter;
     }
 
@@ -50,7 +50,7 @@ private:
 
     net::io_context& _ioc;
     ssl::context& _ctx;
-    kaiten::RateLimiter* _rate_limiter;
+    kaiten::Rate_limiter* _rate_limiter;
 };
 
 #endif // HTTP_CLIENT_HPP 

@@ -2,9 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <sstream>
 
 #include "card.hpp"
 #include "card_utils.hpp"
@@ -22,10 +20,10 @@ bool paginate_with_metadata(
     const std::string& token,
     Fetcher fetcher,
     Handler handle_items,
-    const kaiten::PaginationParams& initial_params = {},
+    const kaiten::Pagination_params& initial_params = {},
     int max_pages = 1000)
 {
-    kaiten::PaginationParams params = initial_params;
+    kaiten::Pagination_params params = initial_params;
     int pages_processed = 0;
     int total_items = 0;
 
@@ -126,7 +124,7 @@ int handle_cards_list(Http_client& client, const std::string& host,
 int handle_cards_list(Http_client& client, const std::string& host,
     const std::string& api_path, const std::string& token)
 {
-    kaiten::PaginationParams params;
+    kaiten::Pagination_params params;
     params.per_page = 100; // Размер страницы
     params.sort_by = "updated";
     params.sort_order = "desc";
@@ -223,7 +221,7 @@ int handle_cards_list(Http_client& client, const std::string& host,
 int handle_cards_list_2(Http_client& client, const std::string& host,
     const std::string& api_path, const std::string& token)
 {
-    kaiten::CardFilterParams no_filters; // Пустые фильтры
+    kaiten::Card_filter_params no_filters; // Пустые фильтры
     int page_size = 100;
 
     std::cout << "Fetching all cards..." << std::endl;
@@ -284,46 +282,47 @@ int handle_cards_filter(Http_client& client, const std::string& host,
     const std::string& api_path, const std::string& token,
     const std::map<std::string, std::string>& filters)
 {
-    kaiten::CardFilterParams filter_params;
-    kaiten::PaginationParams pagination;
+    kaiten::Card_filter_params filter_params;
+    kaiten::Pagination_params pagination;
     pagination.per_page = 100;
 
     // Преобразуем простые фильтры в структурированные
     for (const auto& [key, value] : filters) {
-        if (key == "board_id")
+        if (key == "board_id") {
             filter_params.board_id = std::stoll(value);
-        else if (key == "lane_id")
+        } else if (key == "lane_id") {
             filter_params.lane_id = std::stoll(value);
-        else if (key == "column_id")
+        } else if (key == "column_id") {
             filter_params.column_id = std::stoll(value);
-        else if (key == "owner_id")
+        } else if (key == "owner_id") {
             filter_params.owner_id = std::stoll(value);
-        else if (key == "member_id")
+        } else if (key == "member_id") {
             filter_params.member_id = std::stoll(value);
-        else if (key == "type_id")
+        } else if (key == "type_id") {
             filter_params.type_id = std::stoll(value);
-        else if (key == "type")
+        } else if (key == "type") {
             filter_params.type_name = value;
-        else if (key == "state")
+        } else if (key == "state") {
             filter_params.state = value;
-        else if (key == "archived")
+        } else if (key == "archived") {
             filter_params.archived = (value == "true");
-        else if (key == "blocked")
+        } else if (key == "blocked") {
             filter_params.blocked = (value == "true");
-        else if (key == "asap")
+        } else if (key == "asap") {
             filter_params.asap = (value == "true");
-        else if (key == "search")
+        } else if (key == "search") {
             filter_params.search = value;
-        else if (key == "created_after")
+        } else if (key == "created_after") {
             filter_params.created_after = value;
-        else if (key == "created_before")
+        } else if (key == "created_before") {
             filter_params.created_before = value;
-        else if (key == "updated_after")
+        } else if (key == "updated_after") {
             filter_params.updated_after = value;
-        else if (key == "updated_before")
+        } else if (key == "updated_before") {
             filter_params.updated_before = value;
-        else
+        } else {
             filter_params.custom_filters[key] = value;
+        }
     }
 
     std::cout << "Fetching filtered cards with pagination..." << std::endl;
@@ -377,18 +376,18 @@ int handle_cards_filter(Http_client& client, const std::string& host,
 int handle_users_list(Http_client& client, const std::string& host,
     const std::string& api_path, const std::string& token)
 {
-    kaiten::PaginationParams params;
+    kaiten::Pagination_params params;
     params.per_page = 100;
 
     auto user_fetcher = [](Http_client& client, const std::string& host,
                             const std::string& api_path, const std::string& token,
-                            const kaiten::PaginationParams& pagination) {
-        kaiten::UserFilterParams user_filters;
+                            const kaiten::Pagination_params& pagination) {
+        kaiten::User_filter_params user_filters;
         return kaiten::get_users_paginated(client, host, api_path, token, pagination, user_filters);
     };
 
     auto user_handler = [](const std::vector<User>& users,
-                            const kaiten::PaginatedResult<User>& result) {
+                            const kaiten::Paginated_result<User>& result) {
         for (const auto& user : users) {
             std::cout << "[" << user.id << "] " << user.full_name
                       << " (" << user.email << ")"
@@ -587,8 +586,9 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     std::cout << "Tags: ";
     for (size_t i = 0; i < desired.tags.size(); ++i) {
         std::cout << desired.tags[i];
-        if (i < desired.tags.size() - 1)
+        if (i < desired.tags.size() - 1) {
             std::cout << ", ";
+        }
     }
     std::cout << std::endl;
 
@@ -608,8 +608,9 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
             std::cout << "Tags: ";
             for (size_t i = 0; i < created.tags.size(); ++i) {
                 std::cout << created.tags[i].name;
-                if (i < created.tags.size() - 1)
+                if (i < created.tags.size() - 1) {
                     std::cout << ", ";
+                }
             }
             std::cout << std::endl;
         }
@@ -625,17 +626,17 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
 int handle_boards_list(Http_client& client, const std::string& host,
     const std::string& api_path, const std::string& token)
 {
-    kaiten::PaginationParams params;
+    kaiten::Pagination_params params;
     params.per_page = 50;
 
     auto board_fetcher = [](Http_client& client, const std::string& host,
                              const std::string& api_path, const std::string& token,
-                             const kaiten::PaginationParams& pagination) {
+                             const kaiten::Pagination_params& pagination) {
         return kaiten::get_boards_paginated(client, host, api_path, token, pagination);
     };
 
     auto board_handler = [](const std::vector<Board>& boards,
-                             const kaiten::PaginatedResult<Board>& result) {
+                             const kaiten::Paginated_result<Board>& result) {
         for (const auto& board : boards) {
             std::cout << "[" << board.id << "] " << board.title;
             if (board.external_id.has_value()) {

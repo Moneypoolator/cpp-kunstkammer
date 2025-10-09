@@ -21,7 +21,9 @@ bool option_exists(const po::variables_map& vm, const std::string& option) {
 // Функция для парсинга фильтров из строки
 std::map<std::string, std::string> parse_filters(const std::string& filters_str) {
     std::map<std::string, std::string> filters;
-    if (filters_str.empty()) return filters;
+    if (filters_str.empty()) { 
+        return filters;
+    }
     
     std::stringstream ss(filters_str);
     std::string filter;
@@ -138,16 +140,16 @@ int main(int argc, char** argv) {
 
     // Настройка кэширования
     if (option_exists(vm, "no-cache")) {
-        kaiten::ApiCache::card_cache().set_enabled(false);
-        kaiten::ApiCache::user_cache().set_enabled(false);
-        kaiten::ApiCache::list_cache().set_enabled(false);
-        kaiten::ApiCache::board_cache().set_enabled(false);
+        kaiten::Api_cache::card_cache().set_enabled(false);
+        kaiten::Api_cache::user_cache().set_enabled(false);
+        kaiten::Api_cache::list_cache().set_enabled(false);
+        kaiten::Api_cache::board_cache().set_enabled(false);
         std::cout << "Caching disabled" << std::endl;
     }
 
     // Показать статистику кэша
     if (option_exists(vm, "cache-stats")) {
-        kaiten::ApiCache::print_all_stats();
+        kaiten::Api_cache::print_all_stats();
     }
 
     // Показать статистику rate limiting
@@ -157,7 +159,7 @@ int main(int argc, char** argv) {
 
     // Очистить кэш
     if (option_exists(vm, "clear-cache")) {
-        kaiten::ApiCache::clear_all();
+        kaiten::Api_cache::clear_all();
         std::cout << "All caches cleared" << std::endl;
     }
 
@@ -242,7 +244,7 @@ int main(int argc, char** argv) {
 
     // В конце показать финальную статистику
     if (!option_exists(vm, "no-cache") && !option_exists(vm, "cache-stats")) {
-        kaiten::ApiCache::print_all_stats();
+        kaiten::Api_cache::print_all_stats();
     }
     
     if (!option_exists(vm, "no-rate-limit") && !option_exists(vm, "rate-limit-stats")) {

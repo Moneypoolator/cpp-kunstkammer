@@ -3,7 +3,7 @@
 namespace beast = boost::beast;
 namespace http = beast::http;
 
-Http_client::Http_client(net::io_context& ioc, ssl::context& ctx, kaiten::RateLimiter* rate_limiter)
+Http_client::Http_client(net::io_context& ioc, ssl::context& ctx, kaiten::Rate_limiter* rate_limiter)
     : _ioc(ioc), _ctx(ctx), _rate_limiter(rate_limiter) {}
 
 // Performs an HTTP POST and returns the response (status code, body)

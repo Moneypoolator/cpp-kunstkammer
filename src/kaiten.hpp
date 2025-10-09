@@ -36,20 +36,20 @@ std::pair<int, Card> get_card(
     const std::string& id_or_number);
 
 // Advanced paginated card operations
-PaginatedResult<Card> get_cards_paginated(
+Paginated_result<Card> get_cards_paginated(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const PaginationParams& pagination = {},
-    const CardFilterParams& filters = {});
+    const Pagination_params& pagination = {},
+    const Card_filter_params& filters = {});
 
 std::pair<int, std::vector<Card>> get_all_cards(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const CardFilterParams& filters = {},
+    const Card_filter_params& filters = {},
     int page_size = 100);
 
 // User operations
@@ -60,43 +60,43 @@ std::pair<int, User> get_user(
     const std::string& token,
     std::int64_t user_id);
 
-PaginatedResult<User> get_users_paginated(
+Paginated_result<User> get_users_paginated(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const PaginationParams& pagination = {},
-    const UserFilterParams& filters = {});
+    const Pagination_params& pagination = {},
+    const User_filter_params& filters = {});
 
 std::pair<int, std::vector<User>> get_all_users(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const UserFilterParams& filters = {},
+    const User_filter_params& filters = {},
     int page_size = 100);
 
 // Board operations
-PaginatedResult<Board> get_boards_paginated(
+Paginated_result<Board> get_boards_paginated(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const PaginationParams& pagination = {});
+    const Pagination_params& pagination = {});
 
 // Utility functions for automatic pagination
 template<typename T, typename Func>
-PaginatedResult<T> fetch_all_pages(
+Paginated_result<T> fetch_all_pages(
     Http_client& client,
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
     const std::string& endpoint,
     Func parser,
-    const PaginationParams& initial_pagination = {})
+    const Pagination_params& initial_pagination = {})
 {
-    PaginatedResult<T> result;
-    PaginationParams pagination = initial_pagination;
+    Paginated_result<T> result;
+    Pagination_params pagination = initial_pagination;
     
     do {
         auto page_result = fetch_single_page<T>(client, host, api_path, token, 

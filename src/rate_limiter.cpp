@@ -3,6 +3,6 @@
 namespace kaiten {
 
 // Глобальный экземпляр rate limiter
-RateLimiter global_rate_limiter(60, 1000, std::chrono::milliseconds(100));
+Rate_limiter global_rate_limiter(60, 1000, std::chrono::milliseconds(100));
 
 } // namespace kaiten

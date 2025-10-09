@@ -15,7 +15,7 @@ namespace kaiten {
 template<typename Key, typename Value>
 class Cache {
 public:
-    struct CacheEntry {
+    struct Cache_entry {
         Value value;
         std::chrono::steady_clock::time_point timestamp;
         std::chrono::seconds ttl;
@@ -63,7 +63,7 @@ public:
 
         std::lock_guard<std::mutex> lock(mutex_);
         
-        CacheEntry entry{value, std::chrono::steady_clock::now(), ttl};
+        Cache_entry entry{value, std::chrono::steady_clock::now(), ttl};
         cache_[key] = entry;
         
         // Очистка старых записей при достижении лимита
@@ -134,7 +134,7 @@ public:
 
 private:
     mutable std::mutex mutex_;
-    std::unordered_map<Key, CacheEntry> cache_;
+    std::unordered_map<Key, Cache_entry> cache_;
     std::chrono::seconds default_ttl_;
     size_t max_size_ = 10000;
     bool _enabled = true; // Changed from std::atomic<bool> to bool, as it's always accessed under a mutex.
@@ -145,7 +145,7 @@ private:
 };
 
 // Специализированные кэши для различных типов данных
-class ApiCache {
+class Api_cache {
 public:
     // Кэш для карточек (TTL 2 минуты)
     static Cache<std::int64_t, Card>& card_cache() {
