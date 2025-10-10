@@ -434,9 +434,10 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
 
         Simple_card desired;
         desired.title = task.value("title", "");
+        desired.board_id = std::stoll(config.boardId);
         desired.column_id = std::stoll(config.columnId);
         desired.lane_id = std::stoll(config.laneId);
-        desired.type = task.value("type", "");
+        desired.type_id = 6; // Task Delivery - 6 //task.value("type", "6");
         desired.size = task.value("size", 0);
 
         // Обработка тегов
@@ -444,6 +445,21 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
             for (const auto& tag : task["tags"]) {
                 if (tag.is_string()) {
                     desired.tags.push_back(tag.get<std::string>());
+                }
+            }
+        }
+
+        // Обработка properties
+        if (task.contains("properties") && task["properties"].is_object()) {
+            for (auto it = task["properties"].begin(); it != task["properties"].end(); ++it) {
+                if (it.value().is_string()) {
+                    desired.properties[it.key()] = it.value().get<std::string>();
+                } else if (it.value().is_number()) {
+                    // Конвертируем числа в строки
+                    desired.properties[it.key()] = std::to_string(it.value().get<int>());
+                } else if (it.value().is_boolean()) {
+                    // Конвертируем булевы значения в строки
+                    desired.properties[it.key()] = it.value().get<bool>() ? "true" : "false";
                 }
             }
         }
@@ -465,9 +481,11 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
 
         std::cout << "Creating card " << (i + 1) << "/" << tasks_array.size()
                   << ": '" << desired.title << "'"
-                  << " (type: " << desired.type
+                  << " (type_id: " << desired.type_id
+                  << ", board_id: " << desired.board_id
                   << ", size: " << desired.size
-                  << ", tags: " << desired.tags.size() << ")" << std::endl;
+                  << ", tags: " << desired.tags.size()
+                  << ", properties: " << desired.properties.size() << ")" << std::endl;
 
         auto [status, created] = kaiten::create_card(client, host, api_path, token, desired);
 
@@ -505,11 +523,13 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
 
     Simple_card desired;
     desired.title = title;
+    desired.board_id = std::stoll(config.boardId);
     desired.column_id = std::stoll(config.columnId);
     desired.lane_id = std::stoll(config.laneId);
-    desired.type = type;
+    desired.type_id = std::stoll(type);
     desired.size = size;
     desired.tags = tags;
+    desired.properties["id_19"] = "1";
 
     // Добавляем теги из конфигурации
     if (!config.tags.empty()) {
@@ -522,9 +542,10 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
 
     std::cout << "Creating single card..." << std::endl;
     std::cout << "Title: " << desired.title << std::endl;
+    std::cout << "Board ID: " << desired.board_id << std::endl;
     std::cout << "Column ID: " << desired.column_id << std::endl;
     std::cout << "Lane ID: " << desired.lane_id << std::endl;
-    std::cout << "Type: " << desired.type << std::endl;
+    std::cout << "Type: " << desired.type_id << std::endl;
     std::cout << "Size: " << desired.size << std::endl;
     std::cout << "Tags: ";
     for (size_t i = 0; i < desired.tags.size(); ++i) {
@@ -534,6 +555,15 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
         }
     }
     std::cout << std::endl;
+
+    // Выводим properties если они есть
+    if (!desired.properties.empty()) {
+        std::cout << "Properties: ";
+        for (const auto& [key, value] : desired.properties) {
+            std::cout << key << "=" << value << " ";
+        }
+        std::cout << std::endl;
+    }
 
     auto [status, created] = kaiten::create_card(client, host, api_path, token, desired);
 

@@ -174,7 +174,13 @@ int main(int argc, char** argv)
 
     // Инициализация HTTP клиента
     ssl::context ctx(ssl::context::tlsv12_client);
-    ctx.set_verify_mode(ssl::verify_none);
+ 
+    // Настройка SSL контекста для лучшей совместимости
+    ctx.set_default_verify_paths();
+    ctx.set_verify_mode(ssl::verify_none); // Отключаем проверку сертификата
+
+    // Опционально: установка cipher suites для лучшей совместимости
+    // SSL_CTX_set_cipher_list(ctx.native_handle(), "DEFAULT");
 
     net::io_context ioc;
     Http_client client(ioc, ctx);

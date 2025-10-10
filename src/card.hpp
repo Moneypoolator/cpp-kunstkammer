@@ -16,7 +16,7 @@ struct Simple_card {
     std::int64_t id = 0;
     std::string number;
     std::string title;
-    std::string type;
+    std::int64_t type_id;
     int size = 0;
     bool archived = false;
     std::int64_t board_id = 0;
@@ -25,6 +25,7 @@ struct Simple_card {
     Card_date created;
     Card_date updated;
     std::vector<std::string> tags;
+    std::map<std::string, std::string> properties;
 };
 
 // Структура для пользователя

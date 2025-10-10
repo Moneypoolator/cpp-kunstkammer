@@ -55,18 +55,24 @@ std::pair<int, Card> create_card(
 
     nlohmann::json body = {
         { "title", desired.title },
+        { "board_id", desired.board_id },
         { "column_id", desired.column_id },
         { "lane_id", desired.lane_id }
     };
-    if (!desired.type.empty()) {
-        body["type"] = desired.type;
+    if (desired.type_id > 0) {
+        body["type_id"] = desired.type_id;
     }
     if (desired.size != 0) {
         body["size"] = desired.size;
     }
-    if (!desired.tags.empty()) {
-        body["tags"] = desired.tags;
+    // if (!desired.tags.empty()) {
+    //     body["tags"] = desired.tags;
+    // }
+    if (!desired.properties.empty()) {
+        body["properties"] = desired.properties;
     }
+
+    std::cout << "Creating card with payload: " << body.dump(2) << std::endl;
 
     auto [status, response] = client.post(host, "443", target, body.dump(), token);
     if (status == 200 || status == 201) {
@@ -139,8 +145,11 @@ std::pair<int, Card> update_card(
     if (!changes.title.empty()) {
         body["title"] = changes.title;
     }
-    if (!changes.type.empty()) {
-        body["type"] = changes.type;
+    if (changes.board_id != 0) {
+        body["board_id"] = changes.board_id;
+    }
+    if (changes.type_id > 0) {
+        body["type_id"] = changes.type_id;
     }
     if (changes.size != 0) {
         body["size"] = changes.size;
@@ -153,6 +162,9 @@ std::pair<int, Card> update_card(
     }
     if (!changes.tags.empty()) {
         body["tags"] = changes.tags;
+    }
+    if (!changes.properties.empty()) {
+        body["properties"] = changes.properties;
     }
 
     auto [status, response] = client.patch(host, "443", target, body.dump(), token);
