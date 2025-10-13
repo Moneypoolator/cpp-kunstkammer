@@ -67,6 +67,7 @@ make
   "BoardID": "123",
   "ColumnID": "456",
   "LaneID": "789",
+  "SpaceID": "9",
   "Tags": ["tag1", "tag2"]
 }
 ```

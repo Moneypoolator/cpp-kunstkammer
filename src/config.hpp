@@ -12,6 +12,7 @@ struct Config {
     std::string boardId;
     std::string columnId;
     std::string laneId;
+    std::string spaceId;
     std::vector<std::string> tags;
 };
 
@@ -22,6 +23,7 @@ inline void from_json(const nlohmann::json& j, Config& c) {
     j.at("BoardID").get_to(c.boardId);
     j.at("ColumnID").get_to(c.columnId);
     j.at("LaneID").get_to(c.laneId);
+    j.at("SpaceID").get_to(c.spaceId);
     j.at("Tags").get_to(c.tags);
 }
 

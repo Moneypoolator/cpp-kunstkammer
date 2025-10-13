@@ -48,7 +48,33 @@ std::map<std::string, std::string> parse_filters(const std::string& filters_str)
 int main(int argc, char** argv)
 {
     po::options_description desc("Allowed options");
-    desc.add_options()("help,h", "produce help message")("tasks", po::value<std::string>(), "Path to the tasks JSON file for task creation mode")("report", po::value<std::string>(), "Path to the report JSON file for report import mode")("get-card", po::value<std::string>(), "Card number to retrieve (get-card mode)")("cards-list", "List cards (cards-list mode)")("cards-filter", po::value<std::string>(), "Filter cards (format: key1=value1,key2=value2)")("users-list", "List all users")("get-user", po::value<std::string>(), "Get specific user by ID")("boards-list", "List all boards")("create-card", po::value<std::string>(), "Create a card with given title (uses ColumnID/LaneID from config)")("type", po::value<std::string>()->default_value(""), "Card type for create-card")("size", po::value<int>()->default_value(0), "Card size for create-card")("tags", po::value<std::string>()->default_value(""), "Comma-separated tags for create-card")("config", po::value<std::string>()->default_value("config.json"), "Path to the configuration file")("no-cache", "Disable caching")("no-rate-limit", "Disable rate limiting")("cache-stats", "Show cache statistics")("rate-limit-stats", "Show rate limit statistics")("clear-cache", "Clear all caches")("rate-limit-per-minute", po::value<int>()->default_value(60), "Requests per minute limit")("rate-limit-per-hour", po::value<int>()->default_value(1000), "Requests per hour limit")("request-interval", po::value<int>()->default_value(100), "Minimum interval between requests (ms)")("limit", po::value<int>()->default_value(100), "Maximum records per request (max: 100)")("offset", po::value<int>()->default_value(0), "Number of records to skip")("sort-by", po::value<std::string>(), "Sort field (e.g., 'updated', 'created')")("sort-order", po::value<std::string>()->default_value("desc"), "Sort order (asc/desc)");
+    desc.add_options()
+    ("help,h", "produce help message")
+    ("tasks", po::value<std::string>(), "Path to the tasks JSON file for task creation mode")
+    ("report", po::value<std::string>(), "Path to the report JSON file for report import mode")
+    ("get-card", po::value<std::string>(), "Card number to retrieve (get-card mode)")
+    ("cards-list", "List cards (cards-list mode)")
+    ("cards-filter", po::value<std::string>(), "Filter cards (format: key1=value1,key2=value2)")
+    ("users-list", "List all users")
+    ("get-user", po::value<std::string>(), "Get specific user by ID")
+    ("boards-list", "List all boards")
+    ("create-card", po::value<std::string>(), "Create a card with given title (uses ColumnID/LaneID from config)")
+    ("type", po::value<std::string>()->default_value(""), "Card type for create-card")
+    ("size", po::value<int>()->default_value(0), "Card size for create-card")
+    ("tags", po::value<std::string>()->default_value(""), "Comma-separated tags for create-card")
+    ("config", po::value<std::string>()->default_value("config.json"), "Path to the configuration file")
+    ("no-cache", "Disable caching")
+    ("no-rate-limit", "Disable rate limiting")
+    ("cache-stats", "Show cache statistics")
+    ("rate-limit-stats", "Show rate limit statistics")
+    ("clear-cache", "Clear all caches")
+    ("rate-limit-per-minute", po::value<int>()->default_value(60), "Requests per minute limit")
+    ("rate-limit-per-hour", po::value<int>()->default_value(1000), "Requests per hour limit")
+    ("request-interval", po::value<int>()->default_value(100), "Minimum interval between requests (ms)")
+    ("limit", po::value<int>()->default_value(100), "Maximum records per request (max: 100)")
+    ("offset", po::value<int>()->default_value(0), "Number of records to skip")
+    ("sort-by", po::value<std::string>(), "Sort field (e.g., 'updated', 'created')")
+    ("sort-order", po::value<std::string>()->default_value("desc"), "Sort order (asc/desc)");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -84,6 +110,7 @@ int main(int argc, char** argv)
                 std::cout << "BoardID: " << config.boardId << std::endl;
                 std::cout << "ColumnID: " << config.columnId << std::endl;
                 std::cout << "LaneID: " << config.laneId << std::endl;
+                std::cout << "SpaceID: " << config.spaceId << std::endl;
 
             } catch (nlohmann::json::parse_error& e) {
                 std::cerr << "Failed to parse config file: " << e.what() << std::endl;
@@ -230,7 +257,7 @@ int main(int argc, char** argv)
 
     if (option_exists(vm, "get-user")) {
         std::string user_id = vm["get-user"].as<std::string>();
-        return handle_get_user(client, host, api_path, config.token, user_id);
+        return handle_get_user(client, host, api_path, config.token, config.spaceId, user_id);
     }
 
     if (option_exists(vm, "boards-list")) {

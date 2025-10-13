@@ -297,6 +297,7 @@ std::pair<int, User> get_user(
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
+    const std::string& space_id,
     std::int64_t user_id)
 {
     // Пробуем получить из кэша
@@ -308,7 +309,7 @@ std::pair<int, User> get_user(
 
     std::cout << "Cache MISS for user ID: " << user_id << std::endl;
 
-    std::string target = api_path + "/users/" + std::to_string(user_id);
+    std::string target = api_path + "/spaces/" + space_id + "/users/" + std::to_string(user_id);
 
     auto [status, response] = client.get(host, "443", target, token);
     if (status == 200) {

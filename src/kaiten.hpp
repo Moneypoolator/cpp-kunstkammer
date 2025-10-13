@@ -58,6 +58,7 @@ std::pair<int, User> get_user(
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
+    const std::string& space_id,
     std::int64_t user_id);
 
 Paginated_result<User> get_users_paginated(

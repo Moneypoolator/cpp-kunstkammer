@@ -351,11 +351,12 @@ int handle_cards_filter(Http_client& client, const std::string& host,
 // Реализация handle_get_user
 int handle_get_user(Http_client& client, const std::string& host,
     const std::string& api_path, const std::string& token,
+    const std::string& space_id,
     const std::string& user_id)
 {
     try {
         std::int64_t user_id_num = std::stoll(user_id);
-        auto [status, user] = kaiten::get_user(client, host, api_path, token, user_id_num);
+        auto [status, user] = kaiten::get_user(client, host, api_path, token, space_id, user_id_num);
 
         if (status == 200) {
             std::cout << "\n=== User Details ===" << std::endl;
