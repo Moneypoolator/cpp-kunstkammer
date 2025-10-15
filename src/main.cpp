@@ -59,6 +59,7 @@ int main(int argc, char** argv)
     ("get-user", po::value<std::string>(), "Get specific user by ID")
     ("boards-list", "List all boards")
     ("create-card", po::value<std::string>(), "Create a card with given title (uses ColumnID/LaneID from config)")
+    ("backlog", po::value<std::string>(), "Path to backlog JSON for batch card creation")
     ("type", po::value<std::string>()->default_value(""), "Card type for create-card")
     ("size", po::value<int>()->default_value(0), "Card size for create-card")
     ("tags", po::value<std::string>()->default_value(""), "Comma-separated tags for create-card")
@@ -86,7 +87,7 @@ int main(int argc, char** argv)
     }
 
     // Проверка наличия хотя бы одной опции
-    bool has_mode = option_exists(vm, "tasks") || option_exists(vm, "report") || option_exists(vm, "get-card") || option_exists(vm, "cards-list") || option_exists(vm, "cards-filter") || option_exists(vm, "users-list") || option_exists(vm, "get-user") || option_exists(vm, "boards-list") || option_exists(vm, "create-card");
+    bool has_mode = option_exists(vm, "tasks") || option_exists(vm, "report") || option_exists(vm, "get-card") || option_exists(vm, "cards-list") || option_exists(vm, "cards-filter") || option_exists(vm, "users-list") || option_exists(vm, "get-user") || option_exists(vm, "boards-list") || option_exists(vm, "create-card") || option_exists(vm, "backlog");
 
     if (!has_mode) {
         std::cerr << "Error: No operation mode specified" << std::endl;
@@ -262,6 +263,11 @@ int main(int argc, char** argv)
 
     if (option_exists(vm, "boards-list")) {
         return handle_boards_list(client, host, api_path, config.token);
+    }
+
+    if (option_exists(vm, "backlog")) {
+        std::string backlog_file = vm["backlog"].as<std::string>();
+        return handle_backlog(client, host, api_path, config.token, config, backlog_file);
     }
 
     // В конце показать финальную статистику

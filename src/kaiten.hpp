@@ -35,6 +35,17 @@ std::pair<int, Card> get_card(
     const std::string& token,
     const std::string& id_or_number);
 
+// Card relationships
+// Add an existing card as a child to a parent card
+// POST { "card_id": <child_id> } to /cards/{parent_id}/children
+std::pair<int, bool> add_child_card(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    std::int64_t parent_card_id,
+    std::int64_t child_card_id);
+
 // Advanced paginated card operations
 Paginated_result<Card> get_cards_paginated(
     Http_client& client,
@@ -60,6 +71,21 @@ std::pair<int, User> get_user(
     const std::string& token,
     const std::string& space_id,
     std::int64_t user_id);
+
+// Gets the current authenticated user
+std::pair<int, User> get_current_user(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token);
+
+// Gets users by email filter (exact match). Returns zero, one, or many users
+std::pair<int, std::vector<User>> get_users_by_email(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    const std::string& email);
 
 Paginated_result<User> get_users_paginated(
     Http_client& client,

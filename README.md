@@ -103,6 +103,8 @@ make
 
 # Получить список досок
 ./kaiten-client --boards-list
+
+./kunstkammer --config config.json --backlog backlog.json
 ```
 
 ### Параметры командной строки
@@ -147,23 +149,42 @@ make
 ### Формат JSON для создания задач
 
 ```json
+
 {
-  "schedule": {
-    "tasks": [
-      {
-        "title": "Название задачи 1",
-        "type": "Тип задачи",
-        "size": 3,
-        "tags": ["тег1", "тег2"]
-      },
-      {
-        "title": "Название задачи 2", 
-        "type": "Другой тип",
-        "size": 5,
-        "tags": ["тег3"]
-      }
-    ]
-  }
+  "backlog": [
+	  {
+		"parent": "64151",
+		"responsible": "avechkanov@atollis.com",
+		"role": "C++|React|Java",
+		"tags": ["C++", "ГГИС"],
+		"tasks": [
+		  {
+			"size": 3,
+			"title": "Название задачи 1"
+		  },
+		  {
+			"size": 5,
+			"title": "Название задачи 2"
+		  }
+		]
+	  },
+	  {
+		"parent": "64053",
+		"responsible": "elavlinskaya@atollis.com",
+		"role": "C++|React|Java",
+		"tags": ["Java", "ГГИС"],
+		"tasks": [
+		  {
+			"size": 3,
+			"title": "Название задачи 1"
+		  },
+		  {
+			"size": 5,
+			"title": "Название задачи 2" 
+		  }
+		]
+	  }
+  ]
 }
 ```
 

@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <map>
 #include <nlohmann/json.hpp>
 
 #include "http_client.hpp"
@@ -34,5 +35,8 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
 
 // --create-card (single create)
 int handle_create_card(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token, const Config& config, const std::string& title, const std::string& type, int size, const std::vector<std::string>& tags);
+
+// --backlog (batch create from backlog JSON spec)
+int handle_backlog(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token, const Config& config, const std::string& backlog_file_path);
 
 #endif // MODES_HPP

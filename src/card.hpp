@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 #include <optional>
 
@@ -26,6 +28,64 @@ struct Simple_card {
     Card_date updated;
     std::vector<std::string> tags;
     std::map<std::string, std::string> properties;
+
+    std::int64_t parent_id = 0;
+    std::int64_t owner_id = 0;
+    std::string owner_email;
+    std::int64_t responsible_id = 0;
+
+    std::vector<std::int64_t> members_id;
+    std::string description;
+
+    static constexpr std::string_view sprint_number_property = "id_12";
+    static constexpr std::string_view role_id_property = "id_19";
+    static constexpr std::string_view team_id_property = "id_143";
+
+    // GetSprintNumber extracts sprint number from property id_12
+    std::string get_sprint_number() const
+    {
+        return get_property(sprint_number_property);
+    }
+
+    // GetRoleID extracts role ID from property id_19
+    std::string get_role_id() const
+    {
+        return get_property(role_id_property);
+    }
+    void set_role_id(const std::string& role) {
+        std::string code("1");
+        std::map<std::string, std::string> roles {
+            { "C++", "1" },
+            { "Backend", "2" },
+            { "Frontend", "3" },
+            { "Analyst", "8" },
+            { "UIUX", "9" },
+            { "DevOps", "11" },
+            { "Writer", "12" },
+            { "Approbation", "20" }
+        };
+
+        auto it = roles.find(role);
+        if (it != roles.end()) {
+            code = it->second;
+        }
+        properties[std::string(role_id_property)] = code;
+    }
+
+    std::string get_team_id() const
+    {
+        return get_property(team_id_property);
+    }
+
+private:
+    std::string get_property(std::string_view prop) const
+    {
+        auto it = properties.find(std::string(prop));
+        if (it != properties.end()) {
+            return it->second;
+        }
+        return std::string {};
+    }
 };
 
 // Структура для пользователя

@@ -250,6 +250,153 @@ int handle_cards_list(Http_client& client, const std::string& host,
 }
 
 
+// Реализация handle_backlog (пакетное создание задач по JSON описанию)
+int handle_backlog(Http_client& client, const std::string& host,
+    const std::string& api_path, const std::string& token,
+    const Config& config, const std::string& backlog_file_path)
+{
+    std::ifstream f(backlog_file_path);
+    if (!f) {
+        std::cerr << "Could not open backlog file: " << backlog_file_path << std::endl;
+        return 1;
+    }
+
+    nlohmann::json j;
+    try {
+        f >> j;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to parse backlog JSON: " << e.what() << std::endl;
+        return 1;
+    }
+
+    if (!j.contains("backlog") || !j["backlog"].is_array()) {
+        std::cerr << "Invalid backlog JSON: missing 'backlog' array" << std::endl;
+        return 1;
+    }
+
+    int success = 0;
+    int errors = 0;
+
+    auto [status, current_user] = kaiten::get_current_user(client, host, api_path, config.token);
+    if (status == 200) {
+        std::cout << "id=" << current_user.id << " " << current_user.full_name << " <" << current_user.email << ">" << std::endl;
+    }
+
+    for (const auto& entry : j["backlog"]) {
+        const std::string parent = entry.value("parent", std::string());
+        const std::string responsible = entry.value("responsible", std::string());
+        const std::string role = entry.value("role", std::string());
+
+        std::int64_t parent_card_id = 0;
+        if (!parent.empty()) {
+            parent_card_id = std::stoll(parent);
+        }
+
+        std::vector<std::string> base_tags;
+        if (entry.contains("tags") && entry["tags"].is_array()) {
+            for (const auto& t : entry["tags"]) {
+                if (t.is_string()) { 
+                    base_tags.push_back(t.get<std::string>());
+                }
+            }
+        }
+
+        if (!entry.contains("tasks") || !entry["tasks"].is_array()) {
+            std::cerr << "Backlog entry has no 'tasks' array, skipping." << std::endl;
+            continue;
+        }
+
+        for (const auto& t : entry["tasks"]) {
+            Simple_card desired;
+            desired.title = t.value("title", std::string());
+            desired.size = t.value("size", 0);
+            desired.board_id = std::stoll(config.boardId);
+            desired.column_id = std::stoll(config.columnId);
+            desired.lane_id = std::stoll(config.laneId);
+            desired.type_id = 6;
+
+            // Тип по умолчанию, если в системе требуется
+            if (t.contains("type_id")) {
+                try { desired.type_id = t.at("type_id").get<std::int64_t>(); } catch (...) {}
+            }
+
+            // Merge tags from entry and task
+
+            // desired.tags = base_tags;
+            // if (t.contains("tags") && t["tags"].is_array()) {
+            //     for (const auto& tg : t["tags"]) {
+            //         if (tg.is_string()) {
+            //             desired.tags.push_back(tg.get<std::string>());
+            //         }
+            //     }
+            // }
+            // if (!config.tags.empty()) {
+            //     desired.tags.insert(desired.tags.end(), config.tags.begin(), config.tags.end());
+            // }
+            // std::sort(desired.tags.begin(), desired.tags.end());
+            // desired.tags.erase(std::unique(desired.tags.begin(), desired.tags.end()), desired.tags.end());
+
+            // Сохраняем контекст в properties (если на сервере есть маппинг пользовательских полей)
+
+
+            if (!responsible.empty()) {
+
+                 auto [status, users] = kaiten::get_users_by_email(client, host, api_path, config.token, responsible);
+                 if (status == 200 && !users.empty()) {
+                     for (const auto& u : users) {
+                         std::cout << "id=" << u.id << " " << u.full_name << " <" << u.email << ">" << std::endl;
+
+                         if (u.email == responsible && u.id > 0) {
+                            current_user.id = u.id;
+                         }
+                     }
+                 }
+            }
+            desired.responsible_id = current_user.id;
+
+            if (!role.empty()) {
+                desired.set_role_id(role);
+            }
+
+            std::cout << "Creating backlog card: '" << desired.title << "' size=" << desired.size;
+            if (!parent.empty()) {
+                std::cout << ", parent=" << parent;
+            }
+            if (!responsible.empty()) {
+                std::cout << ", responsible=" << responsible;
+            }
+            if (!role.empty()) {
+                std::cout << ", role=" << role;
+            }
+            std::cout << std::endl;
+
+            auto [status, created] = kaiten::create_card(client, host, api_path, token, desired);
+            if (status == 200 || status == 201) {
+                std::cout << "✓ Created card #" << created.number << " [" << created.id << "] '" << created.title << "'" << std::endl;
+                success++;
+
+                if (parent_card_id > 0) {
+
+                    std::int64_t child_card_id = created.id;
+
+                    auto [status, ok] = kaiten::add_child_card(client, host, api_path, token, parent_card_id, child_card_id);
+                    if (status == 200 || status == 201) {
+                        std::cout << "Child linked successfully\n";
+                    }
+                }
+
+            } else {
+                std::cerr << "✗ Failed to create card. Status: " << status << std::endl;
+                errors++;
+            }
+        }
+    }
+
+    std::cout << "Backlog processing done. Success: " << success << ", Errors: " << errors << std::endl;
+    return errors > 0 ? 1 : 0;
+}
+
+
 
 // Реализация handle_cards_filter
 int handle_cards_filter(Http_client& client, const std::string& host,
