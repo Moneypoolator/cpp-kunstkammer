@@ -3,7 +3,7 @@
 #include "card.hpp"
 #include <iostream>
 
-
+#include <optional>
 #include <regex>
 #include <string>
 
@@ -43,8 +43,9 @@ bool extract_work_code(
 }
 
 // Специализация для std::string
-template<>
-std::string get_optional<std::string>(const nlohmann::json& j, const std::string& key, const std::string& default_value) {
+template <>
+std::string get_optional<std::string>(const nlohmann::json& j, const std::string& key, const std::string& default_value)
+{
     if (j.contains(key)) {
         if (j.at(key).is_null()) {
             return default_value;
@@ -59,8 +60,9 @@ std::string get_optional<std::string>(const nlohmann::json& j, const std::string
 }
 
 // Специализация для bool
-template<>
-bool get_optional<bool>(const nlohmann::json& j, const std::string& key, const bool& default_value) {
+template <>
+bool get_optional<bool>(const nlohmann::json& j, const std::string& key, const bool& default_value)
+{
     if (j.contains(key) && !j.at(key).is_null()) {
         try {
             return j.at(key).get<bool>();
@@ -72,12 +74,13 @@ bool get_optional<bool>(const nlohmann::json& j, const std::string& key, const b
 }
 
 // Реализации числовых функций
-std::int64_t get_int64_optional(const nlohmann::json& j, const std::string& key, std::int64_t default_value) {
+std::int64_t get_int64_optional(const nlohmann::json& j, const std::string& key, std::int64_t default_value)
+{
     if (j.contains(key) && !j.at(key).is_null()) {
         try {
             if (j.at(key).is_number()) {
                 return j.at(key).get<std::int64_t>();
-            } 
+            }
             if (j.at(key).is_string()) {
                 return std::stoll(j.at(key).get<std::string>());
             }
@@ -88,12 +91,13 @@ std::int64_t get_int64_optional(const nlohmann::json& j, const std::string& key,
     return default_value;
 }
 
-int get_int_optional(const nlohmann::json& j, const std::string& key, int default_value) {
+int get_int_optional(const nlohmann::json& j, const std::string& key, int default_value)
+{
     if (j.contains(key) && !j.at(key).is_null()) {
         try {
             if (j.at(key).is_number()) {
                 return j.at(key).get<int>();
-            } 
+            }
             if (j.at(key).is_string()) {
                 return std::stoi(j.at(key).get<std::string>());
             }
@@ -104,12 +108,13 @@ int get_int_optional(const nlohmann::json& j, const std::string& key, int defaul
     return default_value;
 }
 
-double get_double_optional(const nlohmann::json& j, const std::string& key, double default_value) {
+double get_double_optional(const nlohmann::json& j, const std::string& key, double default_value)
+{
     if (j.contains(key) && !j.at(key).is_null()) {
         try {
             if (j.at(key).is_number()) {
                 return j.at(key).get<double>();
-            } 
+            }
             if (j.at(key).is_string()) {
                 return std::stod(j.at(key).get<std::string>());
             }
@@ -120,9 +125,10 @@ double get_double_optional(const nlohmann::json& j, const std::string& key, doub
     return default_value;
 }
 
-//namespace card_utils {
+// namespace card_utils {
 
-void print_card_details(const Card& card, bool verbose) {
+void print_card_details(const Card& card, bool verbose)
+{
     std::cout << "=== Card Details ===\n"
               << "ID: " << card.id << "\n"
               << "Number: " << card.number << "\n"
@@ -150,34 +156,34 @@ void print_card_details(const Card& card, bool verbose) {
               << "Created: " << card.created.toIso8601() << "\n"
               << "Updated: " << card.updated.toIso8601() << "\n"
               << "Last Moved: " << card.last_moved_at.toIso8601() << "\n";
-    
+
     if (!card.members.empty()) {
         std::cout << "\n=== Members (" << card.members.size() << ") ===\n";
         for (const auto& member : card.members) {
             std::cout << " - " << member.full_name << " (" << member.email << ")\n";
         }
     }
-    
+
     if (!card.tags.empty()) {
         std::cout << "\n=== Tags (" << card.tags.size() << ") ===\n";
         for (const auto& tag : card.tags) {
             std::cout << " - " << tag.name << " (Color: " << tag.color << ")\n";
         }
     }
-    
+
     if (!card.parents.empty()) {
         std::cout << "\n=== Parents (" << card.parents.size() << ") ===\n";
         for (const auto& parent : card.parents) {
-            std::cout << " - #" << parent.number << ": " << parent.title 
+            std::cout << " - #" << parent.number << ": " << parent.title
                       << " (State: " << parent.state << ")\n";
         }
     }
-    
+
     if (!card.description.empty()) {
         std::cout << "\n=== Description ===\n"
                   << card.description << "\n";
     }
-    
+
     if (verbose) {
         std::cout << "\n=== Additional Info ===\n"
                   << "Comments: " << card.comments_total << "\n"
@@ -187,6 +193,73 @@ void print_card_details(const Card& card, bool verbose) {
                   << "UID: " << card.uid << "\n"
                   << "Version: " << card.version << "\n";
     }
+}
+
+std::optional<std::string> find_property_value_by_name(const Card& card, const std::string& propertyName)
+{
+    if (propertyName.empty()) {
+        return std::nullopt;
+    }
+    const auto& props = card.properties;
+    if (props.is_null()) {
+        return std::nullopt;
+    }
+
+    // Expecting structure like:
+    // {
+    //   "properties": [ { "name": "...", "value": ... }, ... ]
+    // } or flat { "<name>": <value>, ... }
+
+    // 1) Try array of objects with name/value
+    if (props.is_object() && props.contains("properties") && props["properties"].is_array()) {
+        for (const auto& p : props["properties"]) {
+            if (!p.is_object()) {
+                continue;
+            }
+            if (p.contains("name") && p["name"].is_string() && p["name"].get<std::string>() == propertyName) {
+                if (!p.contains("value")) {
+                    return std::nullopt;
+                }
+                const auto& v = p["value"];
+                if (v.is_string()) {
+                    return v.get<std::string>();
+                }
+                if (v.is_number_integer()) {
+                    return std::to_string(v.get<long long>());
+                }
+                if (v.is_number_float()) {
+                    return std::to_string(v.get<double>());
+                }
+                if (v.is_boolean()) {
+                    return v.get<bool>() ? std::string("true") : std::string("false");
+                }
+                return v.dump();
+            }
+        }
+    }
+
+    // 2) Try flat mapping name -> value
+    if (props.is_object()) {
+        auto it = props.find(propertyName);
+        if (it != props.end()) {
+            const auto& v = *it;
+            if (v.is_string()) {
+                return v.get<std::string>();
+            }
+            if (v.is_number_integer()) {
+                return std::to_string(v.get<long long>());
+            }
+            if (v.is_number_float()) {
+                return std::to_string(v.get<double>());
+            }
+            if (v.is_boolean()) {
+                return v.get<bool>() ? std::string("true") : std::string("false");
+            }
+            return v.dump();
+        }
+    }
+
+    return std::nullopt;
 }
 
 //} // namespace card_utils

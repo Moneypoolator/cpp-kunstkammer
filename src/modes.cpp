@@ -288,6 +288,7 @@ int handle_backlog(Http_client& client, const std::string& host,
         const std::string responsible = entry.value("responsible", std::string());
         const std::string role = entry.value("role", std::string());
 
+        std::string sprint_number;
         std::string parent_card_product_code = "CAD";
         std::string parent_card_work_code = "XXX.XX";
 
@@ -301,6 +302,13 @@ int handle_backlog(Http_client& client, const std::string& host,
                 auto [status, card] = kaiten::get_card(client, host, api_path, token, std::to_string(parent_card_id));
 
                 if (status == 200) {
+
+                    auto val = find_property_value_by_name(card, std::string(Simple_card::sprint_number_property));
+                    if (val.has_value()) {
+                        std::cout << "parent=" << *val << "\n";
+                        sprint_number = *val;
+                    }
+                    
 
                     if (!card.title.empty())  {
 
@@ -348,6 +356,10 @@ int handle_backlog(Http_client& client, const std::string& host,
             desired.column_id = std::stoll(config.columnId);
             desired.lane_id = std::stoll(config.laneId);
             desired.type_id = 6;
+            
+            if (!sprint_number.empty()) {
+                //desired.set_sprint_number(sprint_number);
+            }
 
             // Тип по умолчанию, если в системе требуется
             if (t.contains("type_id")) {

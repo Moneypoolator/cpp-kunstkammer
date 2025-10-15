@@ -46,6 +46,9 @@ struct Simple_card {
     {
         return get_property(sprint_number_property);
     }
+    void set_sprint_number(const std::string& value) {
+        properties[std::string(sprint_number_property)] = value;
+    }
 
     // GetRoleID extracts role ID from property id_19
     std::string get_role_id() const

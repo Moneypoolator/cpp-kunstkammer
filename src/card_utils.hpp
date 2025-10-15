@@ -6,6 +6,7 @@
 #include "card.hpp"
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <optional>
 
 // Вспомогательные функции для безопасного парсинга
 template<typename T>
@@ -50,6 +51,10 @@ bool extract_work_code(
     std::string& product,
     std::string& workCode,
     std::string& errorMessage);
+
+// Find card property value by its human-readable name inside Card.properties
+// Returns std::nullopt if not found. Converts simple types to string; complex JSON is dumped.
+std::optional<std::string> find_property_value_by_name(const Card& card, const std::string& propertyName);
 
     
 //} // namespace card_utils
