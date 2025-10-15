@@ -78,7 +78,7 @@ std::pair<int, std::string> Http_client::post(const std::string& host, const std
         std::string response_body = beast::buffers_to_string(res.body().data());
 
         std::cout << "Response status: " << status << std::endl;
-        std::cout << "Response body: " << response_body << std::endl;
+        //std::cout << "Response body: " << response_body << std::endl;
 
         return { status, response_body };
     } catch (const beast::system_error& e)
@@ -139,15 +139,25 @@ std::pair<int, std::string> Http_client::get(const std::string& host, const std:
 
         beast::error_code ec;
         stream.shutdown(ec);
+
         if (ec == net::error::eof) {
+            // Это нормальное завершение
+            ec = {};
+        }
+        if (ec == ssl::error::stream_truncated) {
+            // Это тоже может быть нормальным для некоторых серверов
             ec = {};
         }
         if (ec) {
-            throw beast::system_error { ec };
+            std::cerr << "SSL shutdown error: " << ec.message() << std::endl;
+            // Не бросаем исключение, так как данные уже получены
+            // throw beast::system_error{ec};
         }
+
 
         int status = static_cast<int>(res.result());
         std::string response_body = beast::buffers_to_string(res.body().data());
+        
         return { status, response_body };
     } catch (std::exception const& e)
     {
@@ -193,15 +203,24 @@ std::pair<int, std::string> Http_client::patch(const std::string& host, const st
 
         beast::error_code ec;
         stream.shutdown(ec);
+
         if (ec == net::error::eof) {
+            // Это нормальное завершение
+            ec = {};
+        }
+        if (ec == ssl::error::stream_truncated) {
+            // Это тоже может быть нормальным для некоторых серверов
             ec = {};
         }
         if (ec) {
-            throw beast::system_error { ec };
+            std::cerr << "SSL shutdown error: " << ec.message() << std::endl;
+            // Не бросаем исключение, так как данные уже получены
+            // throw beast::system_error{ec};
         }
 
         int status = static_cast<int>(res.result());
         std::string response_body = beast::buffers_to_string(res.body().data());
+
         return { status, response_body };
     } catch (std::exception const& e)
     {

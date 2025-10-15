@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include "card.hpp"
 #include "card_utils.hpp"
@@ -287,9 +288,42 @@ int handle_backlog(Http_client& client, const std::string& host,
         const std::string responsible = entry.value("responsible", std::string());
         const std::string role = entry.value("role", std::string());
 
+        std::string parent_card_product_code = "CAD";
+        std::string parent_card_work_code = "XXX.XX";
+
         std::int64_t parent_card_id = 0;
         if (!parent.empty()) {
+
             parent_card_id = std::stoll(parent);
+            if (parent_card_id > 0) {
+
+                std::cout << "Fetching card: " << parent_card_id << std::endl;
+                auto [status, card] = kaiten::get_card(client, host, api_path, token, std::to_string(parent_card_id));
+
+                if (status == 200) {
+
+                    if (!card.title.empty())  {
+
+                        std::string product;
+                        std::string work_code;
+                        std::string err;
+                        if (extract_work_code(card.title, product, work_code, err)) {
+
+                            // product == "MGM", workCode == "19.03"
+                            parent_card_product_code = product;
+                            parent_card_work_code = work_code;
+                            std::cout << "Work code=" << work_code << "; product=" << product << std::endl;
+                        } else {
+                            // err contains the reason
+                            std::cout << "Extract Work Code error: " << err.c_str() << std::endl;
+                        }
+                    
+                    } else {
+                        std::cout << "Parent card title is empty" << std::endl;
+                    }
+                  
+                }
+            }
         }
 
         std::vector<std::string> base_tags;
@@ -344,7 +378,7 @@ int handle_backlog(Http_client& client, const std::string& host,
                  auto [status, users] = kaiten::get_users_by_email(client, host, api_path, config.token, responsible);
                  if (status == 200 && !users.empty()) {
                      for (const auto& u : users) {
-                         std::cout << "id=" << u.id << " " << u.full_name << " <" << u.email << ">" << std::endl;
+                         //std::cout << "id=" << u.id << " " << u.full_name << " <" << u.email << ">" << std::endl;
 
                          if (u.email == responsible && u.id > 0) {
                             current_user.id = u.id;
@@ -375,14 +409,29 @@ int handle_backlog(Http_client& client, const std::string& host,
                 std::cout << "✓ Created card #" << created.number << " [" << created.id << "] '" << created.title << "'" << std::endl;
                 success++;
 
-                if (parent_card_id > 0) {
+                std::int64_t child_card_id = created.id;
 
-                    std::int64_t child_card_id = created.id;
+                if (parent_card_id > 0) {
 
                     auto [status, ok] = kaiten::add_child_card(client, host, api_path, token, parent_card_id, child_card_id);
                     if (status == 200 || status == 201) {
                         std::cout << "Child linked successfully\n";
                     }
+                }
+
+                // std::string parent_card_product_code = "CAD";
+                // std::string parent_card_work_code = "XXX.XX";
+
+                std::ostringstream updated_title;
+                updated_title << "[" << parent_card_product_code << "]:TS." << parent_card_work_code << "." << child_card_id << ". " << created.title ;
+
+                Simple_card changes;
+                changes.title = updated_title.str();
+
+                auto [status, updated_card] = kaiten::update_card(client, host, api_path, token,
+                    std::to_string(child_card_id), changes);
+                if (status == 200 || status == 201) {
+                    std::cout << "Card update successfully\n";
                 }
 
             } else {

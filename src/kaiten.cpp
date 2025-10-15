@@ -13,6 +13,48 @@
 
 namespace kaiten {
 
+namespace {
+
+void log_api_error(const char* action, int status, const std::string& response) {
+    switch (status) {
+        case 400:
+            std::cerr << action << ": 400 Bad Request." << std::endl;
+            break;
+        case 401:
+            std::cerr << action << ": 401 Unauthorized." << std::endl;
+            break;
+        case 402:
+            std::cerr << action << ": 402 Payment Required." << std::endl;
+            break;
+        case 403:
+            std::cerr << action << ": 403 Forbidden." << std::endl;
+            break;
+        case 404:
+            std::cerr << action << ": 404 Not Found." << std::endl;
+            break;
+        default:
+            std::cerr << action << ": Status " << status << "." << std::endl;
+            break;
+    }
+
+    if (!response.empty()) {
+        try {
+            auto err = nlohmann::json::parse(response);
+            if (err.is_object()) {
+                if (err.contains("message")) {
+                    std::cerr << "Error message: " << err["message"].dump() << std::endl;
+                }
+                if (err.contains("errors")) {
+                    std::cerr << "Errors: " << err["errors"].dump() << std::endl;
+                }
+            }
+        } catch (...) {
+            std::cerr << "Error body: " << response << std::endl;
+        }
+    }
+}
+} // namespace
+
     // Временная функция для отладки структуры ответа
 void debug_api_response(const std::string& response) {
     try {
@@ -91,44 +133,7 @@ std::pair<int, Card> create_card(
         }
     }
 
-    // Handle known error statuses with informative messages
-    switch (status) {
-        case 400:
-            std::cerr << "Create card failed: 400 Bad Request. Check required fields (title, column_id, lane_id) and payload format." << std::endl;
-            break;
-        case 401:
-            std::cerr << "Create card failed: 401 Unauthorized. Check Bearer token." << std::endl;
-            break;
-        case 402:
-            std::cerr << "Create card failed: 402 Payment Required (plan/limits)." << std::endl;
-            break;
-        case 403:
-            std::cerr << "Create card failed: 403 Forbidden. Insufficient permissions for board/column/lane." << std::endl;
-            break;
-        case 404:
-            std::cerr << "Create card failed: 404 Not Found. Verify API path or IDs (column/lane)." << std::endl;
-            break;
-        default:
-            std::cerr << "Create card failed: Unsupported status " << status << "." << std::endl;
-            break;
-    }
-
-    // Try to print error details from JSON if available
-    try {
-        auto err = nlohmann::json::parse(response);
-        if (err.is_object()) {
-            if (err.contains("message")) {
-                std::cerr << "Error message: " << err["message"].dump() << std::endl;
-            }
-            if (err.contains("errors")) {
-                std::cerr << "Errors: " << err["errors"].dump() << std::endl;
-            }
-        }
-    } catch (...) {
-        if (!response.empty()) {
-            std::cerr << "Error body: " << response << std::endl;
-        }
-    }
+    log_api_error("Create card failed", status, response);
 
     return { status, Card {} };
 }
@@ -150,27 +155,27 @@ std::pair<int, Card> update_card(
     if (!changes.title.empty()) {
         body["title"] = changes.title;
     }
-    if (changes.board_id != 0) {
-        body["board_id"] = changes.board_id;
-    }
-    if (changes.type_id > 0) {
-        body["type_id"] = changes.type_id;
-    }
-    if (changes.size != 0) {
-        body["size"] = changes.size;
-    }
-    if (changes.column_id != 0) {
-        body["column_id"] = changes.column_id;
-    }
-    if (changes.lane_id != 0) {
-        body["lane_id"] = changes.lane_id;
-    }
-    if (!changes.tags.empty()) {
-        body["tags"] = changes.tags;
-    }
-    if (!changes.properties.empty()) {
-        body["properties"] = changes.properties;
-    }
+    // if (changes.board_id != 0) {
+    //     body["board_id"] = changes.board_id;
+    // }
+    // if (changes.type_id > 0) {
+    //     body["type_id"] = changes.type_id;
+    // }
+    // if (changes.size != 0) {
+    //     body["size"] = changes.size;
+    // }
+    // if (changes.column_id != 0) {
+    //     body["column_id"] = changes.column_id;
+    // }
+    // if (changes.lane_id != 0) {
+    //     body["lane_id"] = changes.lane_id;
+    // }
+    // if (!changes.tags.empty()) {
+    //     body["tags"] = changes.tags;
+    // }
+    // if (!changes.properties.empty()) {
+    //     body["properties"] = changes.properties;
+    // }
 
     auto [status, response] = client.patch(host, "443", target, body.dump(), token);
     if (status == 200) {
@@ -184,42 +189,7 @@ std::pair<int, Card> update_card(
         }
     }
 
-    switch (status) {
-        case 400:
-            std::cerr << "Update card failed: 400 Bad Request. Check payload fields and constraints." << std::endl;
-            break;
-        case 401:
-            std::cerr << "Update card failed: 401 Unauthorized. Check Bearer token." << std::endl;
-            break;
-        case 402:
-            std::cerr << "Update card failed: 402 Payment Required (plan/limits)." << std::endl;
-            break;
-        case 403:
-            std::cerr << "Update card failed: 403 Forbidden. Insufficient permissions." << std::endl;
-            break;
-        case 404:
-            std::cerr << "Update card failed: 404 Not Found. Verify card id/number and path." << std::endl;
-            break;
-        default:
-            std::cerr << "Update card failed: Unsupported status " << status << "." << std::endl;
-            break;
-    }
-
-    try {
-        auto err = nlohmann::json::parse(response);
-        if (err.is_object()) {
-            if (err.contains("message")) {
-                std::cerr << "Error message: " << err["message"].dump() << std::endl;
-            }
-            if (err.contains("errors")) {
-                std::cerr << "Errors: " << err["errors"].dump() << std::endl;
-            }
-        }
-    } catch (...) {
-        if (!response.empty()) {
-            std::cerr << "Error body: " << response << std::endl;
-        }
-    }
+    log_api_error("Update card failed", status, response);
 
     return { status, Card {} };
 }
@@ -277,21 +247,7 @@ std::pair<int, Card> get_card(
         }
     }
 
-    // Обработка ошибок
-    switch (status) {
-        case 401:
-            std::cerr << "Get card failed: 401 Unauthorized. Check Bearer token." << std::endl;
-            break;
-        case 403:
-            std::cerr << "Get card failed: 403 Forbidden. Insufficient permissions." << std::endl;
-            break;
-        case 404:
-            std::cerr << "Get card failed: 404 Not Found. Card not found." << std::endl;
-            break;
-        default:
-            std::cerr << "Get card failed: Status " << status << "." << std::endl;
-            break;
-    }
+    log_api_error("Get card failed", status, response);
 
     return { status, Card {} };
 }
@@ -333,21 +289,7 @@ std::pair<int, User> get_user(
         }
     }
 
-    // Обработка ошибок
-    switch (status) {
-        case 401:
-            std::cerr << "Get user failed: 401 Unauthorized. Check Bearer token." << std::endl;
-            break;
-        case 403:
-            std::cerr << "Get user failed: 403 Forbidden. Insufficient permissions." << std::endl;
-            break;
-        case 404:
-            std::cerr << "Get user failed: 404 Not Found. User not found." << std::endl;
-            break;
-        default:
-            std::cerr << "Get user failed: Status " << status << "." << std::endl;
-            break;
-    }
+    log_api_error("Get user failed", status, response);
 
     return { status, User {} };
 }
@@ -374,17 +316,7 @@ std::pair<int, User> get_current_user(
         }
     }
 
-    switch (status) {
-        case 401:
-            std::cerr << "Get current user failed: 401 Unauthorized. Check Bearer token." << std::endl;
-            break;
-        case 403:
-            std::cerr << "Get current user failed: 403 Forbidden." << std::endl;
-            break;
-        default:
-            std::cerr << "Get current user failed: Status " << status << "." << std::endl;
-            break;
-    }
+    log_api_error("Get current user failed", status, response);
 
     return { status, User {} };
 }
@@ -417,17 +349,7 @@ std::pair<int, std::vector<User>> get_users_by_email(
         }
     }
 
-    switch (status) {
-        case 401:
-            std::cerr << "Get users by email failed: 401 Unauthorized." << std::endl;
-            break;
-        case 403:
-            std::cerr << "Get users by email failed: 403 Forbidden." << std::endl;
-            break;
-        default:
-            std::cerr << "Get users by email failed: Status " << status << "." << std::endl;
-            break;
-    }
+    log_api_error("Get users by email failed", status, response);
 
     return { status, {} };
 }
@@ -452,37 +374,7 @@ std::pair<int, bool> add_child_card(
         return { status, true };
     }
 
-    switch (status) {
-        case 400:
-            std::cerr << "Add child failed: 400 Bad Request. Check parent/child IDs." << std::endl;
-            break;
-        case 401:
-            std::cerr << "Add child failed: 401 Unauthorized. Check Bearer token." << std::endl;
-            break;
-        case 403:
-            std::cerr << "Add child failed: 403 Forbidden. Insufficient permissions." << std::endl;
-            break;
-        case 404:
-            std::cerr << "Add child failed: 404 Not Found. Verify parent/child exist." << std::endl;
-            break;
-        default:
-            std::cerr << "Add child failed: Status " << status << "." << std::endl;
-            break;
-    }
-
-    if (!response.empty()) {
-        try {
-            auto err = nlohmann::json::parse(response);
-            if (err.contains("message")) {
-                std::cerr << "Error message: " << err["message"].dump() << std::endl;
-            }
-            if (err.contains("errors")) {
-                std::cerr << "Errors: " << err["errors"].dump() << std::endl;
-            }
-        } catch (...) {
-            std::cerr << "Error body: " << response << std::endl;
-        }
-    }
+    log_api_error("Add child failed", status, response);
 
     return { status, false };
 }

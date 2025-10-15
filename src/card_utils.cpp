@@ -3,6 +3,45 @@
 #include "card.hpp"
 #include <iostream>
 
+
+#include <regex>
+#include <string>
+
+// Returns true on success; on failure returns false and sets `errorMessage`.
+// On success, `product` is like "CAD" and `workCode` is the substring AFTER the first dot
+// from the `work.code.part` portion, mirroring the Go behavior.
+bool extract_work_code(
+    const std::string& parentTitle,
+    std::string& product,
+    std::string& workCode,
+    std::string& errorMessage)
+{
+    // Pattern: [PRODUCT]:work.code.part
+    // PRODUCT: letters only
+    // work.code.part: starts with letters, then two segments separated by dots,
+    // where segments after the first dot cannot contain dot or whitespace.
+    const std::regex re(R"(\[([A-Za-z]+)\]:([A-Za-z]+\.[^\.\s]+\.[^\.\s]+))");
+
+    std::smatch match;
+    if (!std::regex_search(parentTitle, match, re) || match.size() < 3) {
+        errorMessage = "work code not found in title: " + parentTitle;
+        return false;
+    }
+
+    const std::string work_code_full = match[2].str();
+    const std::size_t dot_idx = work_code_full.find('.');
+    if (dot_idx == std::string::npos || dot_idx + 1 >= work_code_full.size()) {
+        product = match[1].str();
+        errorMessage = "work code format invalid in title: " + parentTitle;
+        return false;
+    }
+
+    product = match[1].str();
+    workCode = work_code_full.substr(dot_idx + 1);
+    errorMessage.clear();
+    return true;
+}
+
 // Специализация для std::string
 template<>
 std::string get_optional<std::string>(const nlohmann::json& j, const std::string& key, const std::string& default_value) {

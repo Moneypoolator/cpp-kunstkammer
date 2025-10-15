@@ -42,7 +42,16 @@ struct Card;
 
 void print_card_details(const Card& card, bool verbose = false); 
 
+// Returns true on success; on failure returns false and sets `errorMessage`.
+// On success, `product` is like "CAD" and `workCode` is the substring AFTER the first dot
+// from the `work.code.part` portion, mirroring the Go behavior.
+bool extract_work_code(
+    const std::string& parentTitle,
+    std::string& product,
+    std::string& workCode,
+    std::string& errorMessage);
 
+    
 //} // namespace card_utils
 
 #endif // CARD_UTILS_HPP
