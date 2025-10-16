@@ -358,7 +358,17 @@ int handle_backlog(Http_client& client, const std::string& host,
             desired.type_id = 6;
             
             if (!sprint_number.empty()) {
-                //desired.set_sprint_number(sprint_number);
+                try {
+                    // Пробуем установить как число
+                    int sprint_num = std::stoi(sprint_number);
+                    desired.set_property_number(std::string(Simple_card::sprint_number_property), sprint_num);
+                } catch (const std::exception&) {
+                    // Если не число, устанавливаем как строку
+                    desired.set_property_string(std::string(Simple_card::sprint_number_property), sprint_number);
+                }
+            } else {
+                // Если спринт пустой, устанавливаем null
+                desired.set_property_null(std::string(Simple_card::sprint_number_property));
             }
 
             // Тип по умолчанию, если в системе требуется
@@ -662,13 +672,11 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
         if (task.contains("properties") && task["properties"].is_object()) {
             for (auto it = task["properties"].begin(); it != task["properties"].end(); ++it) {
                 if (it.value().is_string()) {
-                    desired.properties[it.key()] = it.value().get<std::string>();
+                    desired.set_property_string(it.key(), it.value().get<std::string>());
                 } else if (it.value().is_number()) {
-                    // Конвертируем числа в строки
-                    desired.properties[it.key()] = std::to_string(it.value().get<int>());
+                    desired.set_property_number(it.key(), it.value().get<int>());
                 } else if (it.value().is_boolean()) {
-                    // Конвертируем булевы значения в строки
-                    desired.properties[it.key()] = it.value().get<bool>() ? "true" : "false";
+                    desired.set_property_string(it.key(), it.value().get<bool>() ? std::string("true"): std::string("false"));
                 }
             }
         }
@@ -738,7 +746,8 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     desired.type_id = std::stoll(type);
     desired.size = size;
     desired.tags = tags;
-    desired.properties["id_19"] = "1";
+    //desired.properties["id_19"] = "1";
+    desired.set_role_id("C++");
 
     // Добавляем теги из конфигурации
     if (!config.tags.empty()) {
@@ -769,7 +778,7 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     if (!desired.properties.empty()) {
         std::cout << "Properties: ";
         for (const auto& [key, value] : desired.properties) {
-            std::cout << key << "=" << value << " ";
+            std::cout << key << "=" << property_value_to_json(value) << " ";
         }
         std::cout << std::endl;
     }
@@ -821,7 +830,7 @@ int handle_users_list(Http_client& client, const std::string& host,
     };
 
     auto user_handler = [](const std::vector<User>& users,
-                            const kaiten::Paginated_result<User>& result) {
+                            const kaiten::Paginated_result<User>& /*result*/) {
         for (const auto& user : users) {
             std::cout << "[" << user.id << "] " << user.full_name
                       << " (" << user.email << ")"
@@ -853,7 +862,7 @@ int handle_boards_list(Http_client& client, const std::string& host,
     };
 
     auto board_handler = [](const std::vector<Board>& boards,
-                             const kaiten::Paginated_result<Board>& result) {
+                             const kaiten::Paginated_result<Board>& /*result*/) {
         for (const auto& board : boards) {
             std::cout << "[" << board.id << "] " << board.title;
             if (board.external_id.has_value()) {

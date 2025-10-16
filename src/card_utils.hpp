@@ -31,6 +31,7 @@ std::string get_optional<std::string>(const nlohmann::json& j, const std::string
 template<>
 bool get_optional<bool>(const nlohmann::json& j, const std::string& key, const bool& default_value);
 
+
 // Функции для числовых значений
 std::int64_t get_int64_optional(const nlohmann::json& j, const std::string& key, std::int64_t default_value);
 int get_int_optional(const nlohmann::json& j, const std::string& key, int default_value);

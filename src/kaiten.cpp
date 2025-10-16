@@ -116,7 +116,11 @@ std::pair<int, Card> create_card(
     //     body["tags"] = desired.tags;
     // }
     if (!desired.properties.empty()) {
-        body["properties"] = desired.properties;
+        nlohmann::json props_json = nlohmann::json::object();
+        for (const auto& [key, value] : desired.properties) {
+            props_json[key] = property_value_to_json(value);
+        }
+        body["properties"] = props_json;
     }
 
     std::cout << "Creating card with payload: " << body.dump(2) << std::endl;

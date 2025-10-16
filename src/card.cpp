@@ -86,6 +86,27 @@
 //     return get_numeric_optional<double>(j, key, default_value);
 // }
 
+// Вспомогательная функция для сериализации PropertyValue в JSON
+nlohmann::json property_value_to_json(const PropertyValue& value) {
+    return std::visit([](auto&& arg) -> nlohmann::json {
+        using T = std::decay_t<decltype(arg)>;
+        
+        if constexpr (std::is_same_v<T, std::monostate>) {
+            return nlohmann::json(); // null
+        } else if constexpr (std::is_same_v<T, int> || 
+                           std::is_same_v<T, double> || 
+                           std::is_same_v<T, std::string>) {
+            return arg;
+        } else if constexpr (std::is_same_v<T, std::vector<std::string>>) {
+            return arg;
+        } else if constexpr (std::is_same_v<T, nlohmann::json>) {
+            return arg;
+        } else {
+            return nlohmann::json(); // fallback to null
+        }
+    }, value);
+}
+
 // Реализации десериализации
 void from_json(const nlohmann::json& j, User& u)
 {

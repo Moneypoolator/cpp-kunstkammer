@@ -9,8 +9,23 @@
 #include <utility>
 #include <vector>
 #include <optional>
+#include <variant>
 
 #include "date.hpp"
+
+
+// Тип для значений свойств, соответствующий спецификации Kaiten
+using PropertyValue = std::variant<
+    std::monostate,  // для null
+    int,
+    double,
+    std::string,
+    std::vector<std::string>,
+    nlohmann::json
+>;
+
+// Вспомогательная функция для сериализации PropertyValue в JSON
+nlohmann::json property_value_to_json(const PropertyValue& value);
 
 
 // Альтернативный упрощенный подход
@@ -27,7 +42,7 @@ struct Simple_card {
     Card_date created;
     Card_date updated;
     std::vector<std::string> tags;
-    std::map<std::string, std::string> properties;
+    std::map<std::string, PropertyValue> properties;
 
     std::int64_t parent_id = 0;
     std::int64_t owner_id = 0;
@@ -42,18 +57,35 @@ struct Simple_card {
     static constexpr std::string_view team_id_property = "id_143";
 
     // GetSprintNumber extracts sprint number from property id_12
-    std::string get_sprint_number() const
+    std::optional<std::string> get_sprint_number() const
     {
-        return get_property(sprint_number_property);
+        return get_property_as_string(sprint_number_property);
     }
+    
     void set_sprint_number(const std::string& value) {
-        properties[std::string(sprint_number_property)] = value;
+        // Пробуем преобразовать в число, если это возможно
+        try {
+            if (!value.empty()) {
+                int num_value = std::stoi(value);
+                properties[std::string(sprint_number_property)] = num_value;
+            } else {
+                // Если пустая строка, устанавливаем null
+                properties[std::string(sprint_number_property)] = std::monostate{};
+            }
+        } catch (const std::exception&) {
+            // Если не число, сохраняем как строку
+            properties[std::string(sprint_number_property)] = value;
+        }
+    }
+
+    void clear_sprint_number() {
+        properties[std::string(sprint_number_property)] = std::monostate{};
     }
 
     // GetRoleID extracts role ID from property id_19
-    std::string get_role_id() const
+    std::optional<std::string> get_role_id() const
     {
-        return get_property(role_id_property);
+        return get_property_as_string(role_id_property);
     }
     void set_role_id(const std::string& role) {
         std::string code("1");
@@ -72,22 +104,95 @@ struct Simple_card {
         if (it != roles.end()) {
             code = it->second;
         }
-        properties[std::string(role_id_property)] = code;
+        
+        set_property_string(std::string(role_id_property), code);
+        // // Сохраняем как число
+        // try {
+        //     int num_value = std::stoi(code);
+        //     properties[std::string(role_id_property)] = num_value;
+        // } catch (const std::exception&) {
+        //     properties[std::string(role_id_property)] = code;
+        // }
     }
 
-    std::string get_team_id() const
+    std::optional<std::string> get_team_id() const
     {
-        return get_property(team_id_property);
+        return get_property_as_string(team_id_property);
+    }
+    
+    void set_team_id(const std::string& value) {
+        try {
+            if (!value.empty()) {
+                int num_value = std::stoi(value);
+                properties[std::string(team_id_property)] = num_value;
+            } else {
+                properties[std::string(team_id_property)] = std::monostate{};
+            }
+        } catch (const std::exception&) {
+            properties[std::string(team_id_property)] = value;
+        }
+    }
+
+    // Универсальные методы для работы со свойствами
+    void set_property(const std::string& key, const PropertyValue& value) {
+        properties[key] = value;
+    }
+    
+    void set_property_string(const std::string& key, const std::string& value) {
+        properties[key] = value;
+    }
+    
+    void set_property_number(const std::string& key, int value) {
+        properties[key] = value;
+    }
+    
+    void set_property_double(const std::string& key, double value) {
+        properties[key] = value;
+    }
+    
+    void set_property_null(const std::string& key) {
+        properties[key] = std::monostate{};
+    }
+    
+    void set_property_array(const std::string& key, const std::vector<std::string>& value) {
+        properties[key] = value;
+    }
+    
+    void set_property_object(const std::string& key, const nlohmann::json& value) {
+        properties[key] = value;
     }
 
 private:
-    std::string get_property(std::string_view prop) const
+    std::optional<std::string> get_property_as_string(std::string_view prop) const
     {
         auto it = properties.find(std::string(prop));
         if (it != properties.end()) {
-            return it->second;
+            return property_value_to_string(it->second);
         }
-        return std::string {};
+        return std::nullopt;
+    }
+    
+    static std::string property_value_to_string(const PropertyValue& value) {
+        return std::visit([](auto&& arg) -> std::string {
+            using T = std::decay_t<decltype(arg)>;
+            
+            if constexpr (std::is_same_v<T, std::monostate>) {
+                return "";
+            } else if constexpr (std::is_same_v<T, int>) {
+                return std::to_string(arg);
+            } else if constexpr (std::is_same_v<T, double>) {
+                return std::to_string(arg);
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                return arg;
+            } else if constexpr (std::is_same_v<T, std::vector<std::string>>) {
+                // Для массива возвращаем первый элемент или пустую строку
+                return arg.empty() ? "" : arg[0];
+            } else if constexpr (std::is_same_v<T, nlohmann::json>) {
+                return arg.is_string() ? arg.template get<std::string>() : arg.dump();
+            } else {
+                return "";
+            }
+        }, value);
     }
 };
 

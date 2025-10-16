@@ -42,6 +42,8 @@ bool extract_work_code(
     return true;
 }
 
+
+
 // Специализация для std::string
 template <>
 std::string get_optional<std::string>(const nlohmann::json& j, const std::string& key, const std::string& default_value)

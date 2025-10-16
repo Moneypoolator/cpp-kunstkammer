@@ -177,7 +177,7 @@ int main(int argc, char** argv)
 
     if (option_exists(vm, "offset")) {
         // Можно использовать для настройки пагинации
-        int offset = vm["offset"].as<int>();
+        // int offset = vm["offset"].as<int>();
     }
 
     // Парсинг host и path из config.baseUrl
