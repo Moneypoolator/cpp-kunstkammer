@@ -41,7 +41,7 @@ bool paginate_with_metadata(
         // Устанавливаем текущий offset
         params.offset = current_offset;
 
-        auto page_result = fetcher(client, host, api_path, token, params);
+        auto page_result = fetcher(client, host, port, api_path, token, params);
 
         if (page_result.items.empty()) {
             break;
