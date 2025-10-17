@@ -684,44 +684,57 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
     for (size_t i = 0; i < tasks_array.size(); ++i) {
         const auto& task = tasks_array[i];
 
-        Simple_card desired;
-        desired.title = task.value("title", "");
-        desired.board_id = config.boardId;
-        desired.column_id = config.columnId;
-        desired.lane_id = config.laneId;
-        desired.type_id = 6; // Task Delivery - 6 //task.value("type", "6");
-        desired.size = task.value("size", 0);
+        Simple_card desired(config, task.value("title", ""));
+        // desired.board_id = config.boardId;
+        // desired.column_id = config.columnId;
+        // desired.lane_id = config.laneId;
+        // desired.type_id = 6; // Task Delivery - 6 //task.value("type", "6");
+        // desired.size = task.value("size", 0);
+        if (task.contains("size")) {
+            desired.size = task.value("size", 0);
+        }
 
-        // Обработка тегов
+        // Добавляем общие теги
         if (task.contains("tags") && task["tags"].is_array()) {
+            std::vector<std::string> entry_tags;
             for (const auto& tag : task["tags"]) {
                 if (tag.is_string()) {
-                    desired.tags.push_back(tag.get<std::string>());
+                    entry_tags.push_back(tag.get<std::string>());
                 }
             }
+            desired.add_tags(entry_tags);
         }
 
-        // Обработка properties
-        if (task.contains("properties") && task["properties"].is_object()) {
-            for (auto it = task["properties"].begin(); it != task["properties"].end(); ++it) {
-                if (it.value().is_string()) {
-                    desired.set_property_string(it.key(), it.value().get<std::string>());
-                } else if (it.value().is_number()) {
-                    desired.set_property_number(it.key(), it.value().get<int>());
-                } else if (it.value().is_boolean()) {
-                    desired.set_property_string(it.key(), it.value().get<bool>() ? std::string("true"): std::string("false"));
-                }
-            }
-        }
+        // // Обработка тегов
+        // if (task.contains("tags") && task["tags"].is_array()) {
+        //     for (const auto& tag : task["tags"]) {
+        //         if (tag.is_string()) {
+        //             desired.tags.push_back(tag.get<std::string>());
+        //         }
+        //     }
+        // }
 
-        // Добавляем теги из конфигурации
-        if (!config.tags.empty()) {
-            desired.tags.insert(desired.tags.end(), config.tags.begin(), config.tags.end());
-        }
+        // // Обработка properties
+        // if (task.contains("properties") && task["properties"].is_object()) {
+        //     for (auto it = task["properties"].begin(); it != task["properties"].end(); ++it) {
+        //         if (it.value().is_string()) {
+        //             desired.set_property_string(it.key(), it.value().get<std::string>());
+        //         } else if (it.value().is_number()) {
+        //             desired.set_property_number(it.key(), it.value().get<int>());
+        //         } else if (it.value().is_boolean()) {
+        //             desired.set_property_string(it.key(), it.value().get<bool>() ? std::string("true"): std::string("false"));
+        //         }
+        //     }
+        // }
 
-        // Убираем дубликаты тегов
-        std::sort(desired.tags.begin(), desired.tags.end());
-        desired.tags.erase(std::unique(desired.tags.begin(), desired.tags.end()), desired.tags.end());
+        // // Добавляем теги из конфигурации
+        // if (!config.tags.empty()) {
+        //     desired.tags.insert(desired.tags.end(), config.tags.begin(), config.tags.end());
+        // }
+
+        // // Убираем дубликаты тегов
+        // std::sort(desired.tags.begin(), desired.tags.end());
+        // desired.tags.erase(std::unique(desired.tags.begin(), desired.tags.end()), desired.tags.end());
 
         if (desired.title.empty()) {
             std::cerr << "Task " << (i + 1) << " has empty title, skipping" << std::endl;
