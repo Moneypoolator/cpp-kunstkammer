@@ -112,6 +112,10 @@ int main(int argc, char** argv)
                 std::cout << "ColumnID: " << config.columnId << std::endl;
                 std::cout << "LaneID: " << config.laneId << std::endl;
                 std::cout << "SpaceID: " << config.spaceId << std::endl;
+            
+                std::cout << "TaskTypeId" << config.taskTypeId;
+                std::cout << "TaskSize" << config.taskSize;
+                std::cout << "Role" << config.role;
 
             } catch (nlohmann::json::parse_error& e) {
                 std::cerr << "Failed to parse config file: " << e.what() << std::endl;

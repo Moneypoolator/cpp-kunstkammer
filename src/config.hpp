@@ -9,11 +9,14 @@ struct Config {
     std::string token;
     std::string baseUrl;
     std::string logLevel;
-    std::string boardId;
-    std::string columnId;
-    std::string laneId;
-    std::string spaceId;
+    std::int64_t boardId;
+    std::int64_t columnId;
+    std::int64_t laneId;
+    std::int64_t spaceId;
     std::vector<std::string> tags;
+    std::int64_t taskTypeId;
+    std::int64_t taskSize;
+    std::string role;
 };
 
 inline void from_json(const nlohmann::json& j, Config& c) {
@@ -25,6 +28,10 @@ inline void from_json(const nlohmann::json& j, Config& c) {
     j.at("LaneID").get_to(c.laneId);
     j.at("SpaceID").get_to(c.spaceId);
     j.at("Tags").get_to(c.tags);
+
+    j.at("TaskTypeId").get_to(c.taskTypeId);
+    j.at("TaskSize").get_to(c.taskSize);
+    j.at("Role").get_to(c.role);
 }
 
 #endif // CONFIG_HPP 

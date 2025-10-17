@@ -11,6 +11,7 @@
 #include <optional>
 #include <variant>
 
+#include "config.hpp"
 #include "date.hpp"
 
 
@@ -33,8 +34,8 @@ struct Simple_card {
     std::int64_t id = 0;
     std::string number;
     std::string title;
-    std::int64_t type_id;
-    int size = 0;
+    std::int64_t type_id = 0;
+    std::int64_t size = 0;
     bool archived = false;
     std::int64_t board_id = 0;
     std::int64_t column_id = 0;
@@ -55,6 +56,184 @@ struct Simple_card {
     static constexpr std::string_view sprint_number_property = "id_12";
     static constexpr std::string_view role_id_property = "id_19";
     static constexpr std::string_view team_id_property = "id_143";
+
+
+    Simple_card() = default;
+    
+    Simple_card(const Simple_card&) = default;
+    
+    // Конструктор с минимальной инициализацией из Config
+    explicit Simple_card(const Config& config, const std::string& card_title = "")
+        : title(card_title)
+        , type_id(config.taskTypeId)
+        , size(config.taskSize)
+        , board_id(config.boardId)
+        , column_id(config.columnId)
+        , lane_id(config.laneId)
+    {
+        // Инициализация тегов из конфигурации
+        if (!config.tags.empty()) {
+            tags = config.tags;
+        }
+        
+        // Установка роли из конфигурации
+        if (!config.role.empty()) {
+            set_role_id(config.role);
+        }
+    }
+
+    // Оператор присвоения
+    Simple_card& operator=(const Simple_card& other) {
+        if (this != &other) { // защита от самоприсваивания
+            // Копируем простые поля
+            id = other.id;
+            number = other.number;
+            title = other.title;
+            type_id = other.type_id;
+            size = other.size;
+            archived = other.archived;
+            board_id = other.board_id;
+            column_id = other.column_id;
+            lane_id = other.lane_id;
+            parent_id = other.parent_id;
+            owner_id = other.owner_id;
+            owner_email = other.owner_email;
+            responsible_id = other.responsible_id;
+            description = other.description;
+            
+            // Копируем контейнеры
+            tags = other.tags;
+            members_id = other.members_id;
+            properties = other.properties; // std::map имеет правильный оператор=
+            
+            // Копируем даты
+            created = other.created;
+            updated = other.updated;
+        }
+        return *this;
+    }
+
+    // Оператор присвоения из Config
+    Simple_card& operator=(const Config& config) {
+        // Обновляем только конфигурируемые поля, не трогая идентификаторы и состояние
+        board_id = config.boardId;
+        column_id = config.columnId;
+        lane_id = config.laneId;
+        type_id = config.taskTypeId;
+        
+        // Размер обновляем только если в конфиге задан ненулевой
+        if (config.taskSize > 0) {
+            size = config.taskSize;
+        }
+        
+        // Теги заменяем полностью на теги из конфигурации
+        if (!config.tags.empty()) {
+            tags = config.tags;
+        }
+        
+        // Устанавливаем роль из конфигурации
+        if (!config.role.empty()) {
+            set_role_id(config.role);
+        }
+        
+        return *this;
+    }
+
+    // Комбинированный оператор присвоения (Config + заголовок)
+    Simple_card& assign_from_config(const Config& config, const std::string& card_title = "") {
+        // Применяем оператор присвоения из Config
+        *this = config;
+        
+        // Устанавливаем заголовок если передан
+        if (!card_title.empty()) {
+            title = card_title;
+        }
+        
+        return *this;
+    }
+
+    // Методы для инициализации из Config
+    void init_from_config(const Config& config, const std::string& card_title = "") {
+        *this = config; // используем оператор присвоения
+        if (!card_title.empty()) {
+            title = card_title;
+        }
+    }
+
+    // Инициализация только обязательных полей из Config
+    void init_required_from_config(const Config& config) {
+        board_id = config.boardId;
+        column_id = config.columnId;
+        lane_id = config.laneId;
+        type_id = config.taskTypeId;
+    }
+
+    // Установка контента (заголовок, размер, описание)
+    void set_content(const std::string& card_title, int card_size = 0, 
+                    const std::string& card_description = "") {
+        title = card_title;
+        if (card_size > 0) {
+            size = card_size;
+        }
+        if (!card_description.empty()) {
+            description = card_description;
+        }
+    }
+
+    // Добавление тегов с дедупликацией
+    void add_tags(const std::vector<std::string>& new_tags) {
+        tags.insert(tags.end(), new_tags.begin(), new_tags.end());
+        deduplicate_tags();
+    }
+
+    void add_tag(const std::string& tag) {
+        tags.push_back(tag);
+        deduplicate_tags();
+    }
+
+    // Удаление дубликатов тегов
+    void deduplicate_tags() {
+        std::sort(tags.begin(), tags.end());
+        tags.erase(std::unique(tags.begin(), tags.end()), tags.end());
+    }
+
+    // Создание копии с применением конфигурации
+    Simple_card create_with_config(const Config& config, const std::string& new_title = "") const {
+        Simple_card result = *this; // использует конструктор копирования
+        
+        // Применяем конфигурацию
+        result.assign_from_config(config, new_title);
+        
+        return result;
+    }
+
+    // Утилитарные методы для проверки состояния
+    bool is_configured() const {
+        return board_id > 0 && column_id > 0 && lane_id > 0 && type_id > 0;
+    }
+    
+    bool has_required_fields() const {
+        return !title.empty() && is_configured();
+    }
+    
+    void clear_content() {
+        title.clear();
+        description.clear();
+        tags.clear();
+        properties.clear();
+        size = 0;
+    }
+    
+    void clear_configuration() {
+        board_id = 0;
+        column_id = 0;
+        lane_id = 0;
+        type_id = 0;
+        size = 0;
+        tags.clear();
+        properties.clear();
+    }
+
 
     // GetSprintNumber extracts sprint number from property id_12
     std::optional<std::string> get_sprint_number() const

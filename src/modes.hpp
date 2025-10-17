@@ -25,7 +25,7 @@ int handle_cards_filter(Http_client& client, const std::string& host, const std:
 int handle_users_list(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token);
 
 // --get-user (get specific user)
-int handle_get_user(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token, const std::string& space_id, const std::string& user_id);
+int handle_get_user(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token, const std::int64_t& space_id, const std::string& user_id);
 
 // --boards-list (get all boards)
 int handle_boards_list(Http_client& client, const std::string& host, const std::string& api_path, const std::string& token);

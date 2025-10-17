@@ -280,13 +280,21 @@ int handle_backlog(Http_client& client, const std::string& host,
 
     auto [status, current_user] = kaiten::get_current_user(client, host, api_path, config.token);
     if (status == 200) {
-        std::cout << "id=" << current_user.id << " " << current_user.full_name << " <" << current_user.email << ">" << std::endl;
+        std::cout << "Current user id=" << current_user.id << " " << current_user.full_name << " <" << current_user.email << ">" << std::endl;
     }
 
     for (const auto& entry : j["backlog"]) {
         const std::string parent = entry.value("parent", std::string());
-        const std::string responsible = entry.value("responsible", std::string());
-        const std::string role = entry.value("role", std::string());
+
+        std::string responsible;
+        if (entry.contains("responsible")) {
+            responsible = entry.value("responsible", std::string());
+        }
+
+        std::string role = config.role;
+        if (entry.contains(role)) {
+            role = entry.value("role", std::string());
+        }
 
         std::string sprint_number;
         std::string parent_card_product_code = "CAD";
@@ -334,14 +342,37 @@ int handle_backlog(Http_client& client, const std::string& host,
             }
         }
 
-        std::vector<std::string> base_tags;
+        // Создаем шаблон карточки с общей конфигурацией
+        Simple_card base_card;
+        base_card = config;
+
+        // Настраиваем общие для всех задач свойства
+        if (!sprint_number.empty()) {
+            base_card.set_sprint_number(sprint_number);
+        }
+        if (!role.empty()) {
+            base_card.set_role_id(role);
+        }
+
+        // Добавляем общие теги
         if (entry.contains("tags") && entry["tags"].is_array()) {
-            for (const auto& t : entry["tags"]) {
-                if (t.is_string()) { 
-                    base_tags.push_back(t.get<std::string>());
+            std::vector<std::string> entry_tags;
+            for (const auto& tag : entry["tags"]) {
+                if (tag.is_string()) {
+                    entry_tags.push_back(tag.get<std::string>());
                 }
             }
+            base_card.add_tags(entry_tags);
         }
+
+        // std::vector<std::string> base_tags;
+        // if (entry.contains("tags") && entry["tags"].is_array()) {
+        //     for (const auto& t : entry["tags"]) {
+        //         if (t.is_string()) { 
+        //             base_tags.push_back(t.get<std::string>());
+        //         }
+        //     }
+        // }
 
         if (!entry.contains("tasks") || !entry["tasks"].is_array()) {
             std::cerr << "Backlog entry has no 'tasks' array, skipping." << std::endl;
@@ -349,14 +380,24 @@ int handle_backlog(Http_client& client, const std::string& host,
         }
 
         for (const auto& t : entry["tasks"]) {
-            Simple_card desired;
-            desired.title = t.value("title", std::string());
-            desired.size = t.value("size", 0);
-            desired.board_id = std::stoll(config.boardId);
-            desired.column_id = std::stoll(config.columnId);
-            desired.lane_id = std::stoll(config.laneId);
-            desired.type_id = 6;
+
+            // Создаем конкретную карточку как копию шаблона
+            Simple_card desired = base_card; // оператор присвоения
+            desired.set_content(
+                t.value("title", std::string()));
+
+            // Simple_card desired;
+            // desired.title = t.value("title", std::string());
+            // desired.size = config.taskSize;
+            // desired.board_id = config.boardId;
+            // desired.column_id = config.columnId;
+            // desired.lane_id = config.laneId;
+            // desired.type_id = config.taskTypeId;
             
+            if (t.contains("size")) {
+                desired.size = t.value("size", 0);
+            }
+
             if (!sprint_number.empty()) {
                 try {
                     // Пробуем установить как число
@@ -375,24 +416,6 @@ int handle_backlog(Http_client& client, const std::string& host,
             if (t.contains("type_id")) {
                 try { desired.type_id = t.at("type_id").get<std::int64_t>(); } catch (...) {}
             }
-
-            // Merge tags from entry and task
-
-            // desired.tags = base_tags;
-            // if (t.contains("tags") && t["tags"].is_array()) {
-            //     for (const auto& tg : t["tags"]) {
-            //         if (tg.is_string()) {
-            //             desired.tags.push_back(tg.get<std::string>());
-            //         }
-            //     }
-            // }
-            // if (!config.tags.empty()) {
-            //     desired.tags.insert(desired.tags.end(), config.tags.begin(), config.tags.end());
-            // }
-            // std::sort(desired.tags.begin(), desired.tags.end());
-            // desired.tags.erase(std::unique(desired.tags.begin(), desired.tags.end()), desired.tags.end());
-
-            // Сохраняем контекст в properties (если на сервере есть маппинг пользовательских полей)
 
 
             if (!responsible.empty()) {
@@ -440,6 +463,14 @@ int handle_backlog(Http_client& client, const std::string& host,
                         std::cout << "Child linked successfully\n";
                     }
                 }
+
+                for (const auto& tag : desired.tags) {
+                    auto [status, ok] = kaiten::add_tag_to_card(client, host, api_path, token, child_card_id, tag);
+                    if (status == 200 || status == 201) {
+                        std::cout << "Add tag successfully\n";
+                    }
+                }
+
 
                 // std::string parent_card_product_code = "CAD";
                 // std::string parent_card_work_code = "XXX.XX";
@@ -569,7 +600,7 @@ int handle_cards_filter(Http_client& client, const std::string& host,
 // Реализация handle_get_user
 int handle_get_user(Http_client& client, const std::string& host,
     const std::string& api_path, const std::string& token,
-    const std::string& space_id,
+    const std::int64_t& space_id,
     const std::string& user_id)
 {
     try {
@@ -653,9 +684,9 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
 
         Simple_card desired;
         desired.title = task.value("title", "");
-        desired.board_id = std::stoll(config.boardId);
-        desired.column_id = std::stoll(config.columnId);
-        desired.lane_id = std::stoll(config.laneId);
+        desired.board_id = config.boardId;
+        desired.column_id = config.columnId;
+        desired.lane_id = config.laneId;
         desired.type_id = 6; // Task Delivery - 6 //task.value("type", "6");
         desired.size = task.value("size", 0);
 
@@ -739,24 +770,47 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     }
 
     Simple_card desired;
+    desired = config; // основная конфигурация
     desired.title = title;
-    desired.board_id = std::stoll(config.boardId);
-    desired.column_id = std::stoll(config.columnId);
-    desired.lane_id = std::stoll(config.laneId);
-    desired.type_id = std::stoll(type);
-    desired.size = size;
-    desired.tags = tags;
-    //desired.properties["id_19"] = "1";
-    desired.set_role_id("C++");
-
-    // Добавляем теги из конфигурации
-    if (!config.tags.empty()) {
-        desired.tags.insert(desired.tags.end(), config.tags.begin(), config.tags.end());
+    
+    // Переопределяем тип если указан явно
+    if (!type.empty()) {
+        try {
+            desired.type_id = std::stoll(type);
+        } catch (const std::exception&) {
+            std::cerr << "Warning: Invalid type ID, using default from config" << std::endl;
+        }
+    }
+    
+    // Переопределяем размер если указан явно
+    if (size > 0) {
+        desired.size = size;
+    }
+    
+    // Добавляем дополнительные теги
+    if (!tags.empty()) {
+        desired.add_tags(tags);
     }
 
-    // Убираем дубликаты тегов
-    std::sort(desired.tags.begin(), desired.tags.end());
-    desired.tags.erase(std::unique(desired.tags.begin(), desired.tags.end()), desired.tags.end());
+
+    // desired.title = title;
+    // desired.board_id = config.boardId;
+    // desired.column_id = config.columnId;
+    // desired.lane_id = config.laneId;
+    // desired.type_id = std::stoll(type);
+    // desired.size = size;
+    // desired.tags = tags;
+    // //desired.properties["id_19"] = "1";
+    // desired.set_role_id("C++");
+
+    // // Добавляем теги из конфигурации
+    // if (!config.tags.empty()) {
+    //     desired.tags.insert(desired.tags.end(), config.tags.begin(), config.tags.end());
+    // }
+
+    // // Убираем дубликаты тегов
+    // std::sort(desired.tags.begin(), desired.tags.end());
+    // desired.tags.erase(std::unique(desired.tags.begin(), desired.tags.end()), desired.tags.end());
 
     std::cout << "Creating single card..." << std::endl;
     std::cout << "Title: " << desired.title << std::endl;

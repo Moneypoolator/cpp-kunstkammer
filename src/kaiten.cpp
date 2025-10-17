@@ -262,7 +262,7 @@ std::pair<int, User> get_user(
     const std::string& host,
     const std::string& api_path,
     const std::string& token,
-    const std::string& space_id,
+    std::int64_t space_id,
     std::int64_t user_id)
 {
     // Пробуем получить из кэша
@@ -274,7 +274,7 @@ std::pair<int, User> get_user(
 
     std::cout << "Cache MISS for user ID: " << user_id << std::endl;
 
-    std::string target = api_path + "/spaces/" + space_id + "/users/" + std::to_string(user_id);
+    std::string target = api_path + "/spaces/" + std::to_string(space_id) + "/users/" + std::to_string(user_id);
 
     auto [status, response] = client.get(host, "443", target, token);
     if (status == 200) {
@@ -383,6 +383,33 @@ std::pair<int, bool> add_child_card(
     return { status, false };
 }
 
+
+// Add tag to card
+std::pair<int, bool> add_tag_to_card(
+    Http_client& client,
+    const std::string& host,
+    const std::string& api_path,
+    const std::string& token,
+    std::int64_t card_id,
+    const std::string& tag)
+{
+    std::string target = api_path + "/cards/" + std::to_string(card_id) + "/tags";
+    nlohmann::json body = {
+        {"name", tag}
+    };
+
+    auto [status, response] = client.post(host, "443", target, body.dump(), token);
+
+    if (status == 200 || status == 201) {
+        return { status, true };
+    }
+
+    log_api_error("Add tag failed", status, response);
+
+    return { status, false };
+}
+
+
 // Кэширование для списков с ключом на основе параметров
 std::string generate_cache_key(const std::string& endpoint,
     const Pagination_params& pagination,
@@ -460,7 +487,7 @@ Paginated_result<Card> get_cards_paginated(
         // Устанавливаем пагинационные данные
         result.limit = safe_pagination.limit;
         result.offset = safe_pagination.offset;
-        result.total_count = result.items.size(); // Временное значение
+        result.total_count = static_cast<int>(result.items.size()); // Временное значение
         
         // Определяем, есть ли следующая страница
         result.has_more = result.items.size() == static_cast<size_t>(safe_pagination.limit);
