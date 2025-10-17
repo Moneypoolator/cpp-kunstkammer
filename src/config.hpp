@@ -8,6 +8,7 @@
 struct Config {
     std::string token;
     std::string baseUrl;
+    std::string port;
     std::string logLevel;
     std::int64_t boardId;
     std::int64_t columnId;
@@ -22,6 +23,7 @@ struct Config {
 inline void from_json(const nlohmann::json& j, Config& c) {
     j.at("Token").get_to(c.token);
     j.at("BaseURL").get_to(c.baseUrl);
+    j.at("Port").get_to(c.port);
     j.at("LogLevel").get_to(c.logLevel);
     j.at("BoardID").get_to(c.boardId);
     j.at("ColumnID").get_to(c.columnId);

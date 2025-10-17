@@ -89,6 +89,7 @@ void debug_api_response(const std::string& response) {
 std::pair<int, Card> create_card(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     const Simple_card& desired)
@@ -125,7 +126,7 @@ std::pair<int, Card> create_card(
 
     std::cout << "Creating card with payload: " << body.dump(2) << std::endl;
 
-    auto [status, response] = client.post(host, "443", target, body.dump(), token);
+    auto [status, response] = client.post(host, port, target, body.dump(), token);
     if (status == 200 || status == 201) {
         try {
             auto j = nlohmann::json::parse(response);
@@ -148,6 +149,7 @@ std::pair<int, Card> create_card(
 std::pair<int, Card> update_card(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     const std::string& id_or_number,
@@ -181,7 +183,7 @@ std::pair<int, Card> update_card(
     //     body["properties"] = changes.properties;
     // }
 
-    auto [status, response] = client.patch(host, "443", target, body.dump(), token);
+    auto [status, response] = client.patch(host, port, target, body.dump(), token);
     if (status == 200) {
         try {
             auto j = nlohmann::json::parse(response);
@@ -202,6 +204,7 @@ std::pair<int, Card> update_card(
 std::pair<int, Card> get_card(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     const std::string& id_or_number)
@@ -232,7 +235,7 @@ std::pair<int, Card> get_card(
 
     std::string target = api_path + "/cards/" + id_or_number;
 
-    auto [status, response] = client.get(host, "443", target, token);
+    auto [status, response] = client.get(host, port, target, token);
     if (status == 200) {
         try {
             auto j = nlohmann::json::parse(response);
@@ -260,6 +263,7 @@ std::pair<int, Card> get_card(
 std::pair<int, User> get_user(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     std::int64_t space_id,
@@ -276,7 +280,7 @@ std::pair<int, User> get_user(
 
     std::string target = api_path + "/spaces/" + std::to_string(space_id) + "/users/" + std::to_string(user_id);
 
-    auto [status, response] = client.get(host, "443", target, token);
+    auto [status, response] = client.get(host, port, target, token);
     if (status == 200) {
         try {
             auto j = nlohmann::json::parse(response);
@@ -302,12 +306,13 @@ std::pair<int, User> get_user(
 std::pair<int, User> get_current_user(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token)
 {
     std::string target = api_path + "/users/current";
 
-    auto [status, response] = client.get(host, "443", target, token);
+    auto [status, response] = client.get(host, port, target, token);
     if (status == 200) {
         try {
             auto j = nlohmann::json::parse(response);
@@ -329,13 +334,14 @@ std::pair<int, User> get_current_user(
 std::pair<int, std::vector<User>> get_users_by_email(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     const std::string& email)
 {
     std::string target = api_path + "/users?email=" + email; // assume email URL-safe; encode if needed
 
-    auto [status, response] = client.get(host, "443", target, token);
+    auto [status, response] = client.get(host, port, target, token);
     if (status == 200) {
         try {
             auto j = nlohmann::json::parse(response);
@@ -362,6 +368,7 @@ std::pair<int, std::vector<User>> get_users_by_email(
 std::pair<int, bool> add_child_card(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     std::int64_t parent_card_id,
@@ -372,7 +379,7 @@ std::pair<int, bool> add_child_card(
         {"card_id", child_card_id}
     };
 
-    auto [status, response] = client.post(host, "443", target, body.dump(), token);
+    auto [status, response] = client.post(host, port, target, body.dump(), token);
 
     if (status == 200 || status == 201) {
         return { status, true };
@@ -388,6 +395,7 @@ std::pair<int, bool> add_child_card(
 std::pair<int, bool> add_tag_to_card(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     std::int64_t card_id,
@@ -398,7 +406,7 @@ std::pair<int, bool> add_tag_to_card(
         {"name", tag}
     };
 
-    auto [status, response] = client.post(host, "443", target, body.dump(), token);
+    auto [status, response] = client.post(host, port, target, body.dump(), token);
 
     if (status == 200 || status == 201) {
         return { status, true };
@@ -443,6 +451,7 @@ std::string generate_cache_key(const std::string& endpoint,
 Paginated_result<Card> get_cards_paginated(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     const Pagination_params& pagination,
@@ -462,7 +471,7 @@ Paginated_result<Card> get_cards_paginated(
     
     std::cout << "API Request: " << target << std::endl;
     
-    auto [status, response] = client.get(host, "443", target, token);
+    auto [status, response] = client.get(host, port, target, token);
     
     if (status != 200) {
         std::cerr << "Failed to fetch cards. Status: " << status << std::endl;
@@ -508,6 +517,7 @@ Paginated_result<Card> get_cards_paginated(
 std::pair<int, std::vector<Card>> get_all_cards(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     const Card_filter_params& filters,
@@ -527,7 +537,7 @@ std::pair<int, std::vector<Card>> get_all_cards(
     while (total_requests < max_requests) {
         std::cout << "Fetching offset " << pagination.offset << ", limit " << pagination.limit << "..." << std::endl;
         
-        auto page_result = get_cards_paginated(client, host, api_path, token, 
+        auto page_result = get_cards_paginated(client, host, port, api_path, token, 
                                              pagination, filters);
         
         if (page_result.items.empty()) {
@@ -565,6 +575,7 @@ std::pair<int, std::vector<Card>> get_all_cards(
 Paginated_result<User> get_users_paginated(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     const Pagination_params& pagination,
@@ -581,7 +592,7 @@ Paginated_result<User> get_users_paginated(
     std::string query = Query_builder::build(safe_pagination, filters);
     std::string target = api_path + "/users" + query;
 
-    auto [status, response] = client.get(host, "443", target, token);
+    auto [status, response] = client.get(host, port, target, token);
 
     if (status != 200) {
         std::cerr << "Failed to fetch users. Status: " << status << std::endl;
@@ -614,6 +625,7 @@ Paginated_result<User> get_users_paginated(
 Paginated_result<Board> get_boards_paginated(
     Http_client& client,
     const std::string& host,
+    const std::string& port, 
     const std::string& api_path,
     const std::string& token,
     const Pagination_params& pagination)
@@ -628,7 +640,7 @@ Paginated_result<Board> get_boards_paginated(
     std::string query = Query_builder::build(safe_pagination, Card_filter_params());
     std::string target = api_path + "/boards" + query;
 
-    auto [status, response] = client.get(host, "443", target, token);
+    auto [status, response] = client.get(host, port, target, token);
 
     if (status != 200) {
         std::cerr << "Failed to fetch boards. Status: " << status << std::endl;

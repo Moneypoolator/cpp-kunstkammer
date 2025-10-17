@@ -187,6 +187,7 @@ int main(int argc, char** argv)
     // Парсинг host и path из config.baseUrl
     std::string base_url = config.baseUrl;
     std::string host;
+    std::string port = config.port;
     std::string api_path;
 
     if (base_url.rfind("https://", 0) == 0) {
@@ -202,7 +203,7 @@ int main(int argc, char** argv)
         api_path = "";
     }
 
-    std::cout << "API Endpoint: " << host << api_path << std::endl;
+    std::cout << "API Endpoint: " << host << ":" << port << api_path << std::endl;
 
     // Инициализация HTTP клиента
     ssl::context ctx(ssl::context::tlsv12_client);
@@ -220,7 +221,7 @@ int main(int argc, char** argv)
     // Обработка режимов работы
     if (option_exists(vm, "tasks")) {
         std::string tasks_file_name = vm["tasks"].as<std::string>();
-        return handle_tasks(client, host, api_path, config.token, config, tasks_file_name);
+        return handle_tasks(client, host, port, api_path, config.token, config, tasks_file_name);
     }
 
     if (option_exists(vm, "create-card")) {
@@ -238,40 +239,40 @@ int main(int argc, char** argv)
                 }
             }
         }
-        return handle_create_card(client, host, api_path, config.token, config, title, type, size, tags);
+        return handle_create_card(client, host, port, api_path, config.token, config, title, type, size, tags);
     }
 
     if (option_exists(vm, "get-card")) {
         std::string card_number = vm["get-card"].as<std::string>();
-        return handle_get_card(client, host, api_path, config.token, card_number);
+        return handle_get_card(client, host, port, api_path, config.token, card_number);
     }
 
     if (option_exists(vm, "cards-list")) {
-        return handle_cards_list(client, host, api_path, config.token);
+        return handle_cards_list(client, host, port, api_path, config.token);
     }
 
     if (option_exists(vm, "cards-filter")) {
         std::string filters_str = vm["cards-filter"].as<std::string>();
         auto filters = parse_filters(filters_str);
-        return handle_cards_filter(client, host, api_path, config.token, filters);
+        return handle_cards_filter(client, host, port, api_path, config.token, filters);
     }
 
     if (option_exists(vm, "users-list")) {
-        return handle_users_list(client, host, api_path, config.token);
+        return handle_users_list(client, host, port, api_path, config.token);
     }
 
     if (option_exists(vm, "get-user")) {
         std::string user_id = vm["get-user"].as<std::string>();
-        return handle_get_user(client, host, api_path, config.token, config.spaceId, user_id);
+        return handle_get_user(client, host, port, api_path, config.token, config.spaceId, user_id);
     }
 
     if (option_exists(vm, "boards-list")) {
-        return handle_boards_list(client, host, api_path, config.token);
+        return handle_boards_list(client, host, port, api_path, config.token);
     }
 
     if (option_exists(vm, "backlog")) {
         std::string backlog_file = vm["backlog"].as<std::string>();
-        return handle_backlog(client, host, api_path, config.token, config, backlog_file);
+        return handle_backlog(client, host, port, api_path, config.token, config, backlog_file);
     }
 
     // В конце показать финальную статистику

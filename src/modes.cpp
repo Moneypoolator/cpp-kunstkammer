@@ -17,6 +17,7 @@ template <typename T, typename Client, typename Fetcher, typename Handler>
 bool paginate_with_metadata(
     Client& client,
     const std::string& host,
+    const std::string& port,
     const std::string& api_path,
     const std::string& token,
     Fetcher fetcher,
@@ -84,6 +85,7 @@ template <typename T, typename Client, typename Fetcher, typename Handler>
 bool paginate_with_offset_limit(
     Client& client,
     const std::string& host,
+    const std::string& port,
     const std::string& api_path,
     const std::string& token,
     Fetcher fetcher,
@@ -96,7 +98,7 @@ bool paginate_with_offset_limit(
     int total_items = 0;
 
     while (requests_processed < max_requests) {
-        auto page_result = fetcher(client, host, api_path, token, params);
+        auto page_result = fetcher(client, host, port, api_path, token, params);
 
         if (page_result.items.empty()) {
             break;
@@ -135,13 +137,13 @@ bool paginate_with_offset_limit(
 } // namespace
 
 // Реализация handle_get_card
-int handle_get_card(Http_client& client, const std::string& host,
+int handle_get_card(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token,
     const std::string& card_number)
 {
     std::cout << "Fetching card: " << card_number << std::endl;
 
-    auto [status, card] = kaiten::get_card(client, host, api_path, token, card_number);
+    auto [status, card] = kaiten::get_card(client, host, port, api_path, token, card_number);
 
     if (status == 200) {
         std::cout << "\n=== Card Retrieved Successfully ===" << std::endl;
@@ -161,7 +163,7 @@ int handle_get_card(Http_client& client, const std::string& host,
 }
 
 // Реализация handle_cards_list с правильной пагинацией offset/limit
-int handle_cards_list(Http_client& client, const std::string& host,
+int handle_cards_list(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token)
 {
     kaiten::Pagination_params params;
@@ -178,7 +180,7 @@ int handle_cards_list(Http_client& client, const std::string& host,
         params.offset = offset;
         std::cout << "Fetching offset " << offset << ", limit " << params.limit << "..." << std::endl;
 
-        auto page_result = kaiten::get_cards_paginated(client, host, api_path, token, params);
+        auto page_result = kaiten::get_cards_paginated(client, host, port, api_path, token, params);
 
         if (page_result.items.empty()) {
             std::cout << "No more cards found." << std::endl;
@@ -252,7 +254,7 @@ int handle_cards_list(Http_client& client, const std::string& host,
 
 
 // Реализация handle_backlog (пакетное создание задач по JSON описанию)
-int handle_backlog(Http_client& client, const std::string& host,
+int handle_backlog(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token,
     const Config& config, const std::string& backlog_file_path)
 {
@@ -278,7 +280,7 @@ int handle_backlog(Http_client& client, const std::string& host,
     int success = 0;
     int errors = 0;
 
-    auto [status, current_user] = kaiten::get_current_user(client, host, api_path, config.token);
+    auto [status, current_user] = kaiten::get_current_user(client, host, port, api_path, config.token);
     if (status == 200) {
         std::cout << "Current user id=" << current_user.id << " " << current_user.full_name << " <" << current_user.email << ">" << std::endl;
     }
@@ -307,7 +309,7 @@ int handle_backlog(Http_client& client, const std::string& host,
             if (parent_card_id > 0) {
 
                 std::cout << "Fetching card: " << parent_card_id << std::endl;
-                auto [status, card] = kaiten::get_card(client, host, api_path, token, std::to_string(parent_card_id));
+                auto [status, card] = kaiten::get_card(client, host, port, api_path, token, std::to_string(parent_card_id));
 
                 if (status == 200) {
 
@@ -420,7 +422,7 @@ int handle_backlog(Http_client& client, const std::string& host,
 
             if (!responsible.empty()) {
 
-                 auto [status, users] = kaiten::get_users_by_email(client, host, api_path, config.token, responsible);
+                 auto [status, users] = kaiten::get_users_by_email(client, host, port, api_path, config.token, responsible);
                  if (status == 200 && !users.empty()) {
                      for (const auto& u : users) {
                          //std::cout << "id=" << u.id << " " << u.full_name << " <" << u.email << ">" << std::endl;
@@ -449,7 +451,7 @@ int handle_backlog(Http_client& client, const std::string& host,
             }
             std::cout << std::endl;
 
-            auto [status, created] = kaiten::create_card(client, host, api_path, token, desired);
+            auto [status, created] = kaiten::create_card(client, host, port, api_path, token, desired);
             if (status == 200 || status == 201) {
                 std::cout << "✓ Created card #" << created.number << " [" << created.id << "] '" << created.title << "'" << std::endl;
                 success++;
@@ -458,14 +460,14 @@ int handle_backlog(Http_client& client, const std::string& host,
 
                 if (parent_card_id > 0) {
 
-                    auto [status, ok] = kaiten::add_child_card(client, host, api_path, token, parent_card_id, child_card_id);
+                    auto [status, ok] = kaiten::add_child_card(client, host, port, api_path, token, parent_card_id, child_card_id);
                     if (status == 200 || status == 201) {
                         std::cout << "Child linked successfully\n";
                     }
                 }
 
                 for (const auto& tag : desired.tags) {
-                    auto [status, ok] = kaiten::add_tag_to_card(client, host, api_path, token, child_card_id, tag);
+                    auto [status, ok] = kaiten::add_tag_to_card(client, host, port, api_path, token, child_card_id, tag);
                     if (status == 200 || status == 201) {
                         std::cout << "Add tag successfully\n";
                     }
@@ -481,7 +483,7 @@ int handle_backlog(Http_client& client, const std::string& host,
                 Simple_card changes;
                 changes.title = updated_title.str();
 
-                auto [status, updated_card] = kaiten::update_card(client, host, api_path, token,
+                auto [status, updated_card] = kaiten::update_card(client, host, port, api_path, token,
                     std::to_string(child_card_id), changes);
                 if (status == 200 || status == 201) {
                     std::cout << "Card update successfully\n";
@@ -501,7 +503,7 @@ int handle_backlog(Http_client& client, const std::string& host,
 
 
 // Реализация handle_cards_filter
-int handle_cards_filter(Http_client& client, const std::string& host,
+int handle_cards_filter(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token,
     const std::map<std::string, std::string>& filters)
 {
@@ -554,7 +556,7 @@ int handle_cards_filter(Http_client& client, const std::string& host,
         std::cout << "  " << key << ": " << value << std::endl;
     }
 
-    auto [status, cards] = kaiten::get_all_cards(client, host, api_path, token,
+    auto [status, cards] = kaiten::get_all_cards(client, host, port, api_path, token,
         filter_params, pagination.per_page());
 
     if (status == 200) {
@@ -598,14 +600,14 @@ int handle_cards_filter(Http_client& client, const std::string& host,
 
 
 // Реализация handle_get_user
-int handle_get_user(Http_client& client, const std::string& host,
+int handle_get_user(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token,
     const std::int64_t& space_id,
     const std::string& user_id)
 {
     try {
         std::int64_t user_id_num = std::stoll(user_id);
-        auto [status, user] = kaiten::get_user(client, host, api_path, token, space_id, user_id_num);
+        auto [status, user] = kaiten::get_user(client, host, port, api_path, token, space_id, user_id_num);
 
         if (status == 200) {
             std::cout << "\n=== User Details ===" << std::endl;
@@ -639,7 +641,7 @@ int handle_get_user(Http_client& client, const std::string& host,
 }
 
 // Реализация handle_tasks
-int handle_tasks(Http_client& client, const std::string& host, const std::string& api_path,
+int handle_tasks(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path,
     const std::string& token, const Config& config, const std::string& tasks_file_path)
 {
     std::ifstream tasks_file(tasks_file_path);
@@ -735,7 +737,7 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
                   << ", tags: " << desired.tags.size()
                   << ", properties: " << desired.properties.size() << ")" << std::endl;
 
-        auto [status, created] = kaiten::create_card(client, host, api_path, token, desired);
+        auto [status, created] = kaiten::create_card(client, host, port, api_path, token, desired);
 
         if (status == 200 || status == 201) {
             std::cout << "✓ Created card #" << created.number << " [" << created.id << "] '" << created.title << "'" << std::endl;
@@ -760,7 +762,7 @@ int handle_tasks(Http_client& client, const std::string& host, const std::string
 }
 
 // Реализация handle_create_card
-int handle_create_card(Http_client& client, const std::string& host, const std::string& api_path,
+int handle_create_card(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path,
     const std::string& token, const Config& config, const std::string& title,
     const std::string& type, int size, const std::vector<std::string>& tags)
 {
@@ -837,7 +839,7 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
         std::cout << std::endl;
     }
 
-    auto [status, created] = kaiten::create_card(client, host, api_path, token, desired);
+    auto [status, created] = kaiten::create_card(client, host, port, api_path, token, desired);
 
     if (status == 200 || status == 201) {
         std::cout << "\n✓ Card created successfully!" << std::endl;
@@ -870,17 +872,17 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
 
 
 // Реализация handle_users_list с новой пагинацией
-int handle_users_list(Http_client& client, const std::string& host,
+int handle_users_list(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token)
 {
     kaiten::Pagination_params params;
     params.limit = 100; // Kaiten API максимум
 
-    auto user_fetcher = [](Http_client& client, const std::string& host,
+    auto user_fetcher = [](Http_client& client, const std::string& host, const std::string& port,
                             const std::string& api_path, const std::string& token,
                             const kaiten::Pagination_params& pagination) {
         kaiten::User_filter_params user_filters;
-        return kaiten::get_users_paginated(client, host, api_path, token, pagination, user_filters);
+        return kaiten::get_users_paginated(client, host, port, api_path, token, pagination, user_filters);
     };
 
     auto user_handler = [](const std::vector<User>& users,
@@ -896,23 +898,23 @@ int handle_users_list(Http_client& client, const std::string& host,
     };
 
     std::cout << "Fetching users with offset/limit pagination..." << std::endl;
-    return paginate_with_offset_limit<User>(client, host, api_path, token,
+    return paginate_with_offset_limit<User>(client, host, port, api_path, token,
                user_fetcher, user_handler, params)
              ? 0
              : 1;
 }
 
 // Реализация handle_boards_list с новой пагинацией
-int handle_boards_list(Http_client& client, const std::string& host,
+int handle_boards_list(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token)
 {
     kaiten::Pagination_params params;
     params.limit = 50; // Kaiten API максимум
 
-    auto board_fetcher = [](Http_client& client, const std::string& host,
+    auto board_fetcher = [](Http_client& client, const std::string& host, const std::string& port,
                              const std::string& api_path, const std::string& token,
                              const kaiten::Pagination_params& pagination) {
-        return kaiten::get_boards_paginated(client, host, api_path, token, pagination);
+        return kaiten::get_boards_paginated(client, host, port, api_path, token, pagination);
     };
 
     auto board_handler = [](const std::vector<Board>& boards,
@@ -927,14 +929,14 @@ int handle_boards_list(Http_client& client, const std::string& host,
     };
 
     std::cout << "Fetching boards with offset/limit pagination..." << std::endl;
-    return paginate_with_offset_limit<Board>(client, host, api_path, token,
+    return paginate_with_offset_limit<Board>(client, host, port, api_path, token,
                board_fetcher, board_handler, params)
              ? 0
              : 1;
 }
 
 // Альтернативная реализация handle_cards_list с использованием новой пагинации
-int handle_cards_list_simple(Http_client& client, const std::string& host,
+int handle_cards_list_simple(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token)
 {
     kaiten::Card_filter_params no_filters;
@@ -942,7 +944,7 @@ int handle_cards_list_simple(Http_client& client, const std::string& host,
 
     std::cout << "Fetching all cards with offset/limit pagination..." << std::endl;
 
-    auto [status, all_cards] = kaiten::get_all_cards(client, host, api_path, token,
+    auto [status, all_cards] = kaiten::get_all_cards(client, host, port, api_path, token,
         no_filters, page_size);
 
     if (status != 200) {
