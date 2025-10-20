@@ -1,0 +1,38 @@
+
+{
+    "backlog": [
+        {
+          "parent": "58058",
+          "responsible": "developer1@myemailserver.com",
+          "role": "C++",
+          "tags": ["C++", "ГГИС"],
+          "tasks": [
+            {
+              "size": 3,
+              "title": "Тестовая задача для проверки скрипта 1"
+            },
+            {
+              "size": 5,
+              "title": "Тестовая задача для проверки скрипта 2"
+            }
+          ]
+        },
+        {
+          "parent": "58058",
+          "responsible": "developer2@myemailserver.com",
+          "role": "Backend",
+          "tags": ["Java", "ГГИС"],
+          "tasks": [
+            {
+              "size": 3,
+              "title": "Тестовая задача для проверки скрипта 11"
+            },
+            {
+              "size": 5,
+              "title": "Тестовая задача для проверки скрипта 22"
+            }
+          ]
+        }
+    ]
+  }
+  

@@ -41,19 +41,39 @@ brew install cmake boost openssl
 git clone <repository-url>
 cd kaiten-client
 
-# Создание директории для сборки
-mkdir build && cd build
-
-# Конфигурация проекта
-cmake ..
-
-# Сборка
+# Debug
+mkdir -p build && cd build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
 make -j$(nproc)
 
-# Или для Debug сборки
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-make
+# Release
+mkdir -p build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j$(nproc)
+
+# RelWithDebInfo (рекомендуется)
+mkdir -p build && cd build
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+make -j$(nproc)
+
 ```
+
+### Быстрая сборка
+
+```bash
+# Debug сборка (для разработки)
+./build.sh -d
+
+# Release сборка (для продакшена)
+./build.sh -r
+
+# Сборка с очисткой
+./build.sh -r -c
+
+# Сборка с указанием количества потоков
+./build.sh -r -j 4
+```
+
 
 ## Конфигурация
 
@@ -61,14 +81,21 @@ make
 
 ```json
 {
-  "Token": "your-api-token",
-  "BaseURL": "https://your-company.kaiten.ru/api",
-  "LogLevel": "info",
-  "BoardID": "123",
-  "ColumnID": "456",
-  "LaneID": "789",
-  "SpaceID": "9",
-  "Tags": ["tag1", "tag2"]
+    "Token": "your-kaiten-api-token",
+    "BaseURL": "https://<your-kaiten-host>/api/latest",
+    "Port": "443",
+    "LogLevel": "debug",
+    "BoardID": 192,
+    "ColumnID": 776,
+    "LaneID": 1275,
+    "SpaceID": 9,
+    "Tags": [
+        "ГГИС",
+        "C++"
+    ],
+    "TaskTypeId": 6,
+    "TaskSize": 8,
+    "Role": "C++"
 }
 ```
 

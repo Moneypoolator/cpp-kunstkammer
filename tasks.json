@@ -1,10 +1,10 @@
 {
     "schedule": {
         "parent": "48961",
-        "responsible": "anarolin@atollis.com",
+        "responsible": "myemail@myemailserver.com",
         "tasks": [
-            { "type": "delivery", "size": 4, "title": "Название задачи 1 " },
-            { "type": "delivery", "size": 4, "title": "Название задачи 2 " }
+            { "size": 4, "title": "Название задачи 1 " },
+            { "size": 4, "title": "Название задачи 2 " }
         ]
     }
 }
