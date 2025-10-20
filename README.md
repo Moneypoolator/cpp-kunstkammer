@@ -101,38 +101,6 @@ make -j$(nproc)
 
 ## Использование
 
-### Базовые команды
-
-```bash
-# Получить справку
-./kaiten-client --help
-
-# Создать карточки из JSON файла
-./kaiten-client --tasks tasks.json --config config.json
-
-# Создать одну карточку
-./kaiten-client --create-card "Заголовок задачи" --type "Тип" --size 3 --tags "тег1,тег2"
-
-# Получить информацию о карточке
-./kaiten-client --get-card "CARD-12345"
-
-# Получить список всех карточек
-./kaiten-client --cards-list
-
-# Получить карточки с фильтрацией
-./kaiten-client --cards-filter "board_id=123,state=active,archived=false"
-
-# Получить список пользователей
-./kaiten-client --users-list
-
-# Получить информацию о пользователе
-./kaiten-client --get-user "123"
-
-# Получить список досок
-./kaiten-client --boards-list
-
-./kunstkammer --config config.json --backlog backlog.json
-```
 
 ### Параметры командной строки
 
@@ -171,6 +139,40 @@ make -j$(nproc)
 * --limit <number> - размер страницы (по умолчанию: 100)
 * --sort-by <field> - поле для сортировки
 * --sort-order <order> - порядок сортировки (asc/desc)
+
+
+### Базовые команды
+
+```bash
+# Получить справку
+./kaiten-client --help
+
+# Создать карточки из JSON файла
+./kaiten-client --tasks tasks.json --config config.json
+
+# Создать одну карточку
+./kaiten-client --create-card "Заголовок задачи" --type "Тип" --size 3 --tags "тег1,тег2"
+
+# Получить информацию о карточке
+./kaiten-client --get-card "CARD-12345"
+
+# Получить список всех карточек
+./kaiten-client --cards-list
+
+# Получить карточки с фильтрацией
+./kaiten-client --cards-filter "board_id=123,state=active,archived=false"
+
+# Получить список пользователей
+./kaiten-client --users-list
+
+# Получить информацию о пользователе
+./kaiten-client --get-user "123"
+
+# Получить список досок
+./kaiten-client --boards-list
+
+./kunstkammer --config config.json --backlog backlog.json
+```
 
 
 ### Формат JSON для создания задач
