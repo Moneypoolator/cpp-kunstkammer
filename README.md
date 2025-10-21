@@ -228,7 +228,7 @@ make -j$(nproc)
   "backlog": [
 	  {
 		"parent": "64151",
-		"responsible": "avechkanov@atollis.com",
+		"responsible": "developer1@myemailserver.com",
 		"role": "C++|React|Java",
 		"tags": ["C++", "ГГИС"],
 		"tasks": [
@@ -244,7 +244,7 @@ make -j$(nproc)
 	  },
 	  {
 		"parent": "64053",
-		"responsible": "elavlinskaya@atollis.com",
+		"responsible": "developer2@myemailserver.com",
 		"role": "C++|React|Java",
 		"tags": ["Java", "ГГИС"],
 		"tasks": [
