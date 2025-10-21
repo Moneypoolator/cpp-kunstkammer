@@ -34,6 +34,51 @@ sudo yum install gcc-c++ cmake boost-devel openssl-devel
 brew install cmake boost openssl
 ```
 
+#### MS Windows
+
+Установить [vcpkg]
+
+```bash
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+```
+
+Установить одним из способов CMake:
+
+```bash
+
+# Using winget (Windows 10/11)
+winget install --id Kitware.CMake
+
+# OR using Chocolatey
+choco install cmake --installargs "ADD_CMAKE_TO_PATH=System" -y
+
+# OR using Scoop
+scoop install cmake
+```
+
+
+Учтановить необходимые заввисимости для x64 и выполнить интеграцию со средой сборки:
+
+```bash
+
+# install Boost.ProgramOptions, Boost.System, Boost.Beast (header-only) and OpenSSL for x64
+.\vcpkg.exe install boost-program-options boost-system boost-beast openssl:x64-windows
+
+# integrate so VS and CMake can find packages automatically
+.\vcpkg.exe integrate install
+
+```
+
+Собрать проект, указав путь к vcpkg toolchain file:
+
+```bash
+cmake -S . -B build -A x64 -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config RelWithDebInfo
+```
+
+
 ### Сборка проекта
 
 ```bash
