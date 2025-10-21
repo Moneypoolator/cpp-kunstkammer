@@ -59,14 +59,14 @@ scoop install cmake
 ```
 
 
-Учтановить необходимые заввисимости для x64 и выполнить интеграцию со средой сборки:
+Уcтановить необходимые зависимости для x64 и выполнить интеграцию со средой сборки:
 
 ```bash
 
 # install Boost.ProgramOptions, Boost.System, Boost.Beast (header-only) and OpenSSL for x64
 .\vcpkg.exe install boost-program-options boost-system boost-beast openssl:x64-windows
 
-# integrate so VS and CMake can find packages automatically
+# integrate VS and CMake can find packages automatically
 .\vcpkg.exe integrate install
 
 ```
