@@ -136,11 +136,11 @@ make -j$(nproc)
     "SpaceID": 9,
     "Tags": [
         "ГГИС",
-        "C++"
+        "C++|QA|backend|frontend"
     ],
     "TaskTypeId": 6,
     "TaskSize": 8,
-    "Role": "C++"
+    "Role": "C++|Java|React|Test"
 }
 ```
 
@@ -229,8 +229,8 @@ make -j$(nproc)
 	  {
 		"parent": "64151",
 		"responsible": "developer1@myemailserver.com",
-		"role": "C++|React|Java",
-		"tags": ["C++", "ГГИС"],
+		"role": "C++|Java|React|Test",
+		"tags": ["C++|QA|backend|frontend", "ГГИС"],
 		"tasks": [
 		  {
 			"size": 3,
@@ -245,8 +245,8 @@ make -j$(nproc)
 	  {
 		"parent": "64053",
 		"responsible": "developer2@myemailserver.com",
-		"role": "C++|React|Java",
-		"tags": ["Java", "ГГИС"],
+		"role": "C++|Java|React|Test",
+		"tags": ["C++|QA|backend|frontend", "ГГИС"],
 		"tasks": [
 		  {
 			"size": 3,
