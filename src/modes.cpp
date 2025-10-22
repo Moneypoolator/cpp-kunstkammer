@@ -155,6 +155,14 @@ int handle_get_card(Http_client& client, const std::string& host, const std::str
         std::cout << "Column: " << card.column.title << std::endl;
         std::cout << "Lane: " << card.lane.title << std::endl;
         std::cout << "Owner: " << card.owner.full_name << std::endl;
+
+        if (!card.properties.empty()) {
+            std::cout << "Properties: ";
+            for (const auto& value : card.properties) {
+                std::cout << (value) << " ";
+            }
+            std::cout << std::endl;
+        }
         return 0;
     }
 
@@ -358,6 +366,9 @@ int handle_backlog(Http_client& client, const std::string& host, const std::stri
 
         // Добавляем общие теги
         if (entry.contains("tags") && entry["tags"].is_array()) {
+
+            base_card.tags.clear();
+
             std::vector<std::string> entry_tags;
             for (const auto& tag : entry["tags"]) {
                 if (tag.is_string()) {
@@ -804,6 +815,7 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     
     // Добавляем дополнительные теги
     if (!tags.empty()) {
+        desired.tags.clear();
         desired.add_tags(tags);
     }
 

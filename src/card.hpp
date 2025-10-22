@@ -271,7 +271,10 @@ struct Simple_card {
         std::map<std::string, std::string> roles {
             { "C++", "1" },
             { "Backend", "2" },
+            { "Java", "2" },
             { "Frontend", "3" },
+            { "React", "3" },
+            { "Test", "4" },
             { "Analyst", "8" },
             { "UIUX", "9" },
             { "DevOps", "11" },

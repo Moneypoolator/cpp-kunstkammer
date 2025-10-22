@@ -196,7 +196,7 @@ make -j$(nproc)
 ./kaiten-client --tasks tasks.json --config config.json
 
 # Создать одну карточку
-./kaiten-client --create-card "Заголовок задачи" --type "Тип" --size 3 --tags "тег1,тег2"
+./kaiten-client --create-card "Заголовок задачи" --size 3 --tags "тег1,тег2"
 
 # Получить информацию о карточке
 ./kaiten-client --get-card "CARD-12345"

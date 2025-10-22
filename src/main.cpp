@@ -226,8 +226,10 @@ int main(int argc, char** argv)
 
     if (option_exists(vm, "create-card")) {
         std::string title = vm["create-card"].as<std::string>();
-        std::string type = vm["type"].as<std::string>();
         int size = vm["size"].as<int>();
+
+        std::string type = vm["type"].as<std::string>();
+
         std::string tags_csv = vm["tags"].as<std::string>();
         std::vector<std::string> tags;
         if (!tags_csv.empty()) {
