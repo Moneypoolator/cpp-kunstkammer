@@ -1,6 +1,5 @@
 #include "modes.hpp"
 
-#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -260,352 +259,662 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
     return all_cards.empty() ? 1 : 0;
 }
 
+// Вспомогательные функции для обработки бэклога
+
+/**
+ * Получение информации о родительской карточке
+ */
+bool fetch_parent_card_info(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    const std::string& parent_id_str,
+    std::string& sprint_number,
+    std::string& product_code,
+    std::string& work_code)
+{
+    if (parent_id_str.empty()) {
+        return false;
+    }
+
+    try {
+        std::int64_t parent_card_id = std::stoll(parent_id_str);
+        if (parent_card_id <= 0) {
+            return false;
+        }
+
+        std::cout << "Fetching parent card: " << parent_card_id << std::endl;
+        auto [status, card] = kaiten::get_card(client, host, port, api_path, token, std::to_string(parent_card_id));
+
+        if (status != 200) {
+            return false;
+        }
+
+        // Получаем номер спринта из свойств
+        auto sprint_val = find_property_value_by_name(card, std::string(Simple_card::sprint_number_property));
+        if (sprint_val.has_value()) {
+            sprint_number = *sprint_val;
+            std::cout << "Parent sprint number: " << sprint_number << std::endl;
+        }
+
+        // Извлекаем work code из заголовка
+        if (!card.title.empty()) {
+            std::string product;
+            std::string work_code_temp;
+            std::string error;
+            if (extract_work_code(card.title, product, work_code_temp, error)) {
+                product_code = product;
+                work_code = work_code_temp;
+                std::cout << "Work code: " << work_code << ", product: " << product << std::endl;
+            } else {
+                std::cout << "Extract Work Code error: " << error << std::endl;
+                return false;
+            }
+        } else {
+            std::cout << "Parent card title is empty" << std::endl;
+            return false;
+        }
+
+        return true;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error processing parent card: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+/**
+ * Поиск пользователя по email для назначения ответственного
+ */
+std::int64_t find_responsible_user_id(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    const std::string& responsible_email)
+{
+    if (responsible_email.empty()) {
+        return 0;
+    }
+
+    auto [status, users] = kaiten::get_users_by_email(client, host, port, api_path, token, responsible_email);
+    if (status == 200 && !users.empty()) {
+        for (const auto& user : users) {
+            if (user.email == responsible_email && user.id > 0) {
+                std::cout << "Found responsible user: " << user.full_name << " <" << user.email << ">" << std::endl;
+                return user.id;
+            }
+        }
+    }
+
+    std::cout << "Responsible user not found for email: " << responsible_email << std::endl;
+    return 0;
+}
+
+/**
+ * Создание базовой карточки из конфигурации
+ */
+Simple_card create_base_card_from_config(
+    const Config& config,
+    const std::string& sprint_number,
+    const std::string& role)
+{
+    Simple_card base_card;
+    base_card = config; // Применяем основную конфигурацию
+
+    // Настраиваем свойства спринта
+    if (!sprint_number.empty()) {
+        try {
+            int sprint_num = std::stoi(sprint_number);
+            base_card.set_property_number(std::string(Simple_card::sprint_number_property), sprint_num);
+        } catch (const std::exception&) {
+            base_card.set_property_string(std::string(Simple_card::sprint_number_property), sprint_number);
+        }
+    } else {
+        base_card.set_property_null(std::string(Simple_card::sprint_number_property));
+    }
+
+    // Устанавливаем роль
+    if (!role.empty()) {
+        base_card.set_role_id(role);
+    }
+
+    return base_card;
+}
+
+/**
+ * Создание конкретной задачи из шаблона
+ */
+Simple_card create_task_card(
+    const Simple_card& base_card,
+    const nlohmann::json& task_json,
+    std::int64_t responsible_user_id)
+{
+    Simple_card task_card = base_card; // Копируем базовую конфигурацию
+
+    // Устанавливаем заголовок и размер
+    task_card.set_content(
+        task_json.value("title", ""),
+        task_json.value("size", 0));
+
+    // Назначаем ответственного
+    if (responsible_user_id > 0) {
+        task_card.responsible_id = responsible_user_id;
+    }
+
+    // Переопределяем тип если указан в задаче
+    if (task_json.contains("type_id")) {
+        try {
+            task_card.type_id = task_json.at("type_id").get<std::int64_t>();
+        } catch (...) {
+            // Оставляем тип из конфигурации
+        }
+    }
+
+    return task_card;
+}
+
+/**
+ * Добавление тегов к карточке из JSON
+ */
+void add_tags_from_json(
+    Simple_card& card,
+    const nlohmann::json& tags_json)
+{
+    if (tags_json.is_array()) {
+        std::vector<std::string> entry_tags;
+        for (const auto& tag : tags_json) {
+            if (tag.is_string()) {
+                entry_tags.push_back(tag.get<std::string>());
+            }
+        }
+        card.add_tags(entry_tags);
+    }
+}
+
+/**
+ * Создание карточки в системе
+ */
+std::pair<int, Card> create_card_in_system(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    const Simple_card& card_data)
+{
+    std::cout << "Creating card: '" << card_data.title << "' size=" << card_data.size;
+    if (card_data.responsible_id > 0) {
+        std::cout << ", responsible_id=" << card_data.responsible_id;
+    }
+    std::cout << std::endl;
+
+    return kaiten::create_card(client, host, port, api_path, token, card_data);
+}
+
+/**
+ * Обновление заголовка карточки с work code
+ */
+bool update_card_title_with_work_code(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    std::int64_t card_id,
+    const std::string& product_code,
+    const std::string& work_code,
+    const std::string& original_title)
+{
+    std::ostringstream updated_title;
+    updated_title << "[" << product_code << "]:TS." << work_code << "." << card_id << ". " << original_title;
+
+    Simple_card changes;
+    changes.title = updated_title.str();
+
+    auto [status, updated_card] = kaiten::update_card(
+        client, host, port, api_path, token, std::to_string(card_id), changes);
+
+    if (status == 200 || status == 201) {
+        std::cout << "Card title updated successfully with work code" << std::endl;
+        return true;
+    }
+
+    std::cerr << "Failed to update card title" << std::endl;
+    return false;
+}
+
+/**
+ * Добавление тегов к созданной карточке
+ */
+void add_tags_to_created_card(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    std::int64_t card_id,
+    const std::vector<std::string>& tags)
+{
+    for (const auto& tag : tags) {
+        auto [status, ok] = kaiten::add_tag_to_card(client, host, port, api_path, token, card_id, tag);
+        if (status == 200 || status == 201) {
+            std::cout << "Tag '" << tag << "' added successfully" << std::endl;
+        } else {
+            std::cerr << "Failed to add tag '" << tag << "'" << std::endl;
+        }
+    }
+}
+
+/**
+ * Связывание карточки с родителем
+ */
+bool link_card_to_parent(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    std::int64_t parent_card_id,
+    std::int64_t child_card_id)
+{
+    if (parent_card_id <= 0) {
+        return false;
+    }
+
+    auto [status, ok] = kaiten::add_child_card(client, host, port, api_path, token, parent_card_id, child_card_id);
+    if (status == 200 || status == 201) {
+        std::cout << "Child linked successfully to parent" << std::endl;
+        return true;
+    }
+
+    std::cerr << "Failed to link child to parent" << std::endl;
+    return false;
+}
+
+/**
+ * Обработка одной записи бэклога
+ */
+std::pair<int, int> process_backlog_entry(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    const Config& config,
+    const nlohmann::json& entry,
+    std::int64_t current_user_id)
+{
+    int success_count = 0;
+    int error_count = 0;
+
+    // Получаем данные из entry
+    const std::string parent_id_str = entry.value("parent", "");
+    const std::string responsible_email = entry.value("responsible", "");
+    std::string role = entry.value("role", config.role);
+
+    // Получаем информацию о родительской карточке
+    std::string sprint_number;
+    std::string product_code = "CAD";
+    std::string work_code = "XXX.XX";
+
+    std::int64_t parent_card_id = 0;
+    if (!parent_id_str.empty()) {
+        parent_card_id = std::stoll(parent_id_str);
+        fetch_parent_card_info(client, host, port, api_path, token, parent_id_str,
+            sprint_number, product_code, work_code);
+    }
+
+    // Находим ID ответственного пользователя
+    std::int64_t responsible_user_id = current_user_id;
+    if (!responsible_email.empty()) {
+        std::int64_t found_user_id = find_responsible_user_id(client, host, port, api_path, token, responsible_email);
+        if (found_user_id > 0) {
+            responsible_user_id = found_user_id;
+        }
+    }
+
+    // Создаем базовую карточку
+    Simple_card base_card = create_base_card_from_config(config, sprint_number, role);
+
+    // Добавляем теги из entry
+    if (entry.contains("tags") && entry["tags"].is_array()) {
+        add_tags_from_json(base_card, entry["tags"]);
+    }
+
+    // Проверяем наличие задач
+    if (!entry.contains("tasks") || !entry["tasks"].is_array()) {
+        std::cerr << "Backlog entry has no 'tasks' array, skipping." << std::endl;
+        return { 0, 1 };
+    }
+
+    // Обрабатываем каждую задачу
+    for (const auto& task : entry["tasks"]) {
+        // Создаем конкретную задачу
+        Simple_card task_card = create_task_card(base_card, task, responsible_user_id);
+
+        // Создаем карточку в системе
+        auto [status, created_card] = create_card_in_system(client, host, port, api_path, token, task_card);
+
+        if (status == 200 || status == 201) {
+            std::cout << "✓ Created card #" << created_card.number << " [" << created_card.id << "] '" << created_card.title << "'" << std::endl;
+            success_count++;
+
+            // Выполняем дополнительные операции с созданной карточкой
+            std::int64_t child_card_id = created_card.id;
+
+            // Связываем с родителем
+            if (parent_card_id > 0) {
+                link_card_to_parent(client, host, port, api_path, token, parent_card_id, child_card_id);
+            }
+
+            // Добавляем теги
+            add_tags_to_created_card(client, host, port, api_path, token, child_card_id, task_card.tags);
+
+            // Обновляем заголовок с work code
+            update_card_title_with_work_code(client, host, port, api_path, token,
+                child_card_id, product_code, work_code, task_card.title);
+
+        } else {
+            std::cerr << "✗ Failed to create card. Status: " << status << std::endl;
+            error_count++;
+        }
+    }
+
+    return { success_count, error_count };
+}
 
 // Реализация handle_backlog (пакетное создание задач по JSON описанию)
 int handle_backlog(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token,
     const Config& config, const std::string& backlog_file_path)
 {
+    // Загрузка и валидация JSON файла
     std::ifstream f(backlog_file_path);
     if (!f) {
         std::cerr << "Could not open backlog file: " << backlog_file_path << std::endl;
         return 1;
     }
 
-    nlohmann::json j;
+    nlohmann::json backlog_json;
     try {
-        f >> j;
+        f >> backlog_json;
     } catch (const std::exception& e) {
         std::cerr << "Failed to parse backlog JSON: " << e.what() << std::endl;
         return 1;
     }
 
-    if (!j.contains("backlog") || !j["backlog"].is_array()) {
+    if (!backlog_json.contains("backlog") || !backlog_json["backlog"].is_array()) {
         std::cerr << "Invalid backlog JSON: missing 'backlog' array" << std::endl;
         return 1;
     }
 
-    int success = 0;
-    int errors = 0;
-
+    // Получаем информацию о текущем пользователе
     auto [status, current_user] = kaiten::get_current_user(client, host, port, api_path, config.token);
+    std::int64_t current_user_id = 0;
     if (status == 200) {
-        std::cout << "Current user id=" << current_user.id << " " << current_user.full_name << " <" << current_user.email << ">" << std::endl;
+        current_user_id = current_user.id;
+        std::cout << "Current user id=" << current_user.id << " " << current_user.full_name
+                  << " <" << current_user.email << ">" << std::endl;
     }
 
-    for (const auto& entry : j["backlog"]) {
-        const std::string parent = entry.value("parent", std::string());
+    // Обрабатываем каждую запись в бэклоге
+    int total_success = 0;
+    int total_errors = 0;
 
-        std::string responsible;
-        if (entry.contains("responsible")) {
-            responsible = entry.value("responsible", std::string());
-        }
+    for (const auto& entry : backlog_json["backlog"]) {
+        auto [success, errors] = process_backlog_entry(
+            client, host, port, api_path, token, config, entry, current_user_id);
 
-        std::string role = config.role;
-        if (entry.contains(role)) {
-            role = entry.value("role", std::string());
-        }
-
-        std::string sprint_number;
-        std::string parent_card_product_code = "CAD";
-        std::string parent_card_work_code = "XXX.XX";
-
-        std::int64_t parent_card_id = 0;
-        if (!parent.empty()) {
-
-            parent_card_id = std::stoll(parent);
-            if (parent_card_id > 0) {
-
-                std::cout << "Fetching card: " << parent_card_id << std::endl;
-                auto [status, card] = kaiten::get_card(client, host, port, api_path, token, std::to_string(parent_card_id));
-
-                if (status == 200) {
-
-                    auto val = find_property_value_by_name(card, std::string(Simple_card::sprint_number_property));
-                    if (val.has_value()) {
-                        std::cout << "parent=" << *val << "\n";
-                        sprint_number = *val;
-                    }
-                    
-
-                    if (!card.title.empty())  {
-
-                        std::string product;
-                        std::string work_code;
-                        std::string err;
-                        if (extract_work_code(card.title, product, work_code, err)) {
-
-                            // product == "MGM", workCode == "19.03"
-                            parent_card_product_code = product;
-                            parent_card_work_code = work_code;
-                            std::cout << "Work code=" << work_code << "; product=" << product << std::endl;
-                        } else {
-                            // err contains the reason
-                            std::cout << "Extract Work Code error: " << err.c_str() << std::endl;
-                        }
-                    
-                    } else {
-                        std::cout << "Parent card title is empty" << std::endl;
-                    }
-                  
-                }
-            }
-        }
-
-        // Создаем шаблон карточки с общей конфигурацией
-        Simple_card base_card;
-        base_card = config;
-
-        // Настраиваем общие для всех задач свойства
-        if (!sprint_number.empty()) {
-            base_card.set_sprint_number(sprint_number);
-        }
-        if (!role.empty()) {
-            base_card.set_role_id(role);
-        }
-
-        // Добавляем общие теги
-        if (entry.contains("tags") && entry["tags"].is_array()) {
-
-            base_card.tags.clear();
-
-            std::vector<std::string> entry_tags;
-            for (const auto& tag : entry["tags"]) {
-                if (tag.is_string()) {
-                    entry_tags.push_back(tag.get<std::string>());
-                }
-            }
-            base_card.add_tags(entry_tags);
-        }
-
-        // std::vector<std::string> base_tags;
-        // if (entry.contains("tags") && entry["tags"].is_array()) {
-        //     for (const auto& t : entry["tags"]) {
-        //         if (t.is_string()) { 
-        //             base_tags.push_back(t.get<std::string>());
-        //         }
-        //     }
-        // }
-
-        if (!entry.contains("tasks") || !entry["tasks"].is_array()) {
-            std::cerr << "Backlog entry has no 'tasks' array, skipping." << std::endl;
-            continue;
-        }
-
-        for (const auto& t : entry["tasks"]) {
-
-            // Создаем конкретную карточку как копию шаблона
-            Simple_card desired = base_card; // оператор присвоения
-            desired.set_content(
-                t.value("title", std::string()));
-
-            // Simple_card desired;
-            // desired.title = t.value("title", std::string());
-            // desired.size = config.taskSize;
-            // desired.board_id = config.boardId;
-            // desired.column_id = config.columnId;
-            // desired.lane_id = config.laneId;
-            // desired.type_id = config.taskTypeId;
-            
-            if (t.contains("size")) {
-                desired.size = t.value("size", 0);
-            }
-
-            if (!sprint_number.empty()) {
-                try {
-                    // Пробуем установить как число
-                    int sprint_num = std::stoi(sprint_number);
-                    desired.set_property_number(std::string(Simple_card::sprint_number_property), sprint_num);
-                } catch (const std::exception&) {
-                    // Если не число, устанавливаем как строку
-                    desired.set_property_string(std::string(Simple_card::sprint_number_property), sprint_number);
-                }
-            } else {
-                // Если спринт пустой, устанавливаем null
-                desired.set_property_null(std::string(Simple_card::sprint_number_property));
-            }
-
-            // Тип по умолчанию, если в системе требуется
-            if (t.contains("type_id")) {
-                try { desired.type_id = t.at("type_id").get<std::int64_t>(); } catch (...) {}
-            }
-
-
-            if (!responsible.empty()) {
-
-                 auto [status, users] = kaiten::get_users_by_email(client, host, port, api_path, config.token, responsible);
-                 if (status == 200 && !users.empty()) {
-                     for (const auto& u : users) {
-                         //std::cout << "id=" << u.id << " " << u.full_name << " <" << u.email << ">" << std::endl;
-
-                         if (u.email == responsible && u.id > 0) {
-                            current_user.id = u.id;
-                         }
-                     }
-                 }
-            }
-            desired.responsible_id = current_user.id;
-
-            if (!role.empty()) {
-                desired.set_role_id(role);
-            }
-
-            std::cout << "Creating backlog card: '" << desired.title << "' size=" << desired.size;
-            if (!parent.empty()) {
-                std::cout << ", parent=" << parent;
-            }
-            if (!responsible.empty()) {
-                std::cout << ", responsible=" << responsible;
-            }
-            if (!role.empty()) {
-                std::cout << ", role=" << role;
-            }
-            std::cout << std::endl;
-
-            auto [status, created] = kaiten::create_card(client, host, port, api_path, token, desired);
-            if (status == 200 || status == 201) {
-                std::cout << "✓ Created card #" << created.number << " [" << created.id << "] '" << created.title << "'" << std::endl;
-                success++;
-
-                std::int64_t child_card_id = created.id;
-
-                if (parent_card_id > 0) {
-
-                    auto [status, ok] = kaiten::add_child_card(client, host, port, api_path, token, parent_card_id, child_card_id);
-                    if (status == 200 || status == 201) {
-                        std::cout << "Child linked successfully\n";
-                    }
-                }
-
-                for (const auto& tag : desired.tags) {
-                    auto [status, ok] = kaiten::add_tag_to_card(client, host, port, api_path, token, child_card_id, tag);
-                    if (status == 200 || status == 201) {
-                        std::cout << "Add tag successfully\n";
-                    }
-                }
-
-
-                // std::string parent_card_product_code = "CAD";
-                // std::string parent_card_work_code = "XXX.XX";
-
-                std::ostringstream updated_title;
-                updated_title << "[" << parent_card_product_code << "]:TS." << parent_card_work_code << "." << child_card_id << ". " << created.title ;
-
-                Simple_card changes;
-                changes.title = updated_title.str();
-
-                auto [status, updated_card] = kaiten::update_card(client, host, port, api_path, token,
-                    std::to_string(child_card_id), changes);
-                if (status == 200 || status == 201) {
-                    std::cout << "Card update successfully\n";
-                }
-
-            } else {
-                std::cerr << "✗ Failed to create card. Status: " << status << std::endl;
-                errors++;
-            }
-        }
+        total_success += success;
+        total_errors += errors;
     }
 
-    std::cout << "Backlog processing done. Success: " << success << ", Errors: " << errors << std::endl;
-    return errors > 0 ? 1 : 0;
+    // Вывод итоговой статистики
+    std::cout << "Backlog processing done. Success: " << total_success << ", Errors: " << total_errors << std::endl;
+
+    return total_errors > 0 ? 1 : 0;
 }
 
 
 
-// Реализация handle_cards_filter
-int handle_cards_filter(Http_client& client, const std::string& host, const std::string& port,
-    const std::string& api_path, const std::string& token,
-    const std::map<std::string, std::string>& filters)
-{
-    kaiten::Card_filter_params filter_params;
-    kaiten::Pagination_params pagination(100);
-    // pagination.per_page = 100;
 
-    // Преобразуем простые фильтры в структурированные
+
+// Карта для преобразования фильтров
+using FilterHandler = std::function<void(kaiten::Card_filter_params&, const std::string&)>;
+
+static const std::map<std::string, FilterHandler> filter_handlers = {
+    { "board_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+         try {
+             params.board_id = std::stoll(value);
+         } catch (const std::exception& e) {
+             std::cerr << "Warning: Invalid board_id format: " << value << std::endl;
+         }
+     } },
+
+    { "lane_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+         try {
+             params.lane_id = std::stoll(value);
+         } catch (const std::exception& e) {
+             std::cerr << "Warning: Invalid lane_id format: " << value << std::endl;
+         }
+     } },
+
+    { "column_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+         try {
+             params.column_id = std::stoll(value);
+         } catch (const std::exception& e) {
+             std::cerr << "Warning: Invalid column_id format: " << value << std::endl;
+         }
+     } },
+
+    { "owner_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+         try {
+             params.owner_id = std::stoll(value);
+         } catch (const std::exception& e) {
+             std::cerr << "Warning: Invalid owner_id format: " << value << std::endl;
+         }
+     } },
+
+    { "member_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+         try {
+             params.member_id = std::stoll(value);
+         } catch (const std::exception& e) {
+             std::cerr << "Warning: Invalid member_id format: " << value << std::endl;
+         }
+     } },
+
+    { "type_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+         try {
+             params.type_id = std::stoll(value);
+         } catch (const std::exception& e) {
+             std::cerr << "Warning: Invalid type_id format: " << value << std::endl;
+         }
+     } },
+
+    { "type", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.type_name = value;
+     } },
+
+    { "state", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.state = value;
+     } },
+
+    { "archived", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.archived = (value == "true" || value == "1" || value == "yes");
+     } },
+
+    { "blocked", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.blocked = (value == "true" || value == "1" || value == "yes");
+     } },
+
+    { "asap", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.asap = (value == "true" || value == "1" || value == "yes");
+     } },
+
+    { "search", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.search = value;
+     } },
+
+    { "created_after", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.created_after = value;
+     } },
+
+    { "created_before", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.created_before = value;
+     } },
+
+    { "updated_after", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.updated_after = value;
+     } },
+
+    { "updated_before", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.updated_before = value;
+     } },
+
+    { "condition", [](kaiten::Card_filter_params& params, const std::string& value) {
+         try {
+             params.condition = std::stoi(value);
+         } catch (const std::exception& e) {
+             std::cerr << "Warning: Invalid condition format: " << value << std::endl;
+         }
+     } },
+
+    { "number", [](kaiten::Card_filter_params& params, const std::string& value) {
+         params.number = value;
+     } }
+};
+
+/**
+ * Применение фильтров к параметрам через карту обработчиков
+ */
+void apply_filters(kaiten::Card_filter_params& filter_params, const std::map<std::string, std::string>& filters)
+{
     for (const auto& [key, value] : filters) {
-        if (key == "board_id") {
-            filter_params.board_id = std::stoll(value);
-        } else if (key == "lane_id") {
-            filter_params.lane_id = std::stoll(value);
-        } else if (key == "column_id") {
-            filter_params.column_id = std::stoll(value);
-        } else if (key == "owner_id") {
-            filter_params.owner_id = std::stoll(value);
-        } else if (key == "member_id") {
-            filter_params.member_id = std::stoll(value);
-        } else if (key == "type_id") {
-            filter_params.type_id = std::stoll(value);
-        } else if (key == "type") {
-            filter_params.type_name = value;
-        } else if (key == "state") {
-            filter_params.state = value;
-        } else if (key == "archived") {
-            filter_params.archived = (value == "true");
-        } else if (key == "blocked") {
-            filter_params.blocked = (value == "true");
-        } else if (key == "asap") {
-            filter_params.asap = (value == "true");
-        } else if (key == "search") {
-            filter_params.search = value;
-        } else if (key == "created_after") {
-            filter_params.created_after = value;
-        } else if (key == "created_before") {
-            filter_params.created_before = value;
-        } else if (key == "updated_after") {
-            filter_params.updated_after = value;
-        } else if (key == "updated_before") {
-            filter_params.updated_before = value;
+        auto handler_it = filter_handlers.find(key);
+        if (handler_it != filter_handlers.end()) {
+            try {
+                handler_it->second(filter_params, value);
+            } catch (const std::exception& e) {
+                std::cerr << "Error applying filter '" << key << "': " << e.what() << std::endl;
+            }
         } else {
+            // Неизвестный фильтр - добавляем как кастомный
             filter_params.custom_filters[key] = value;
+            std::cout << "Note: Using custom filter '" << key << "'" << std::endl;
         }
     }
+}
 
-    std::cout << "Fetching filtered cards with pagination..." << std::endl;
+/**
+ * Вывод статистики по карточкам
+ */
+void print_cards_statistics(const std::vector<Card>& cards)
+{
+    if (cards.empty()) {
+        std::cout << "No cards to display statistics" << std::endl;
+        return;
+    }
+
+    std::map<std::string, int> type_stats;
+    std::map<std::string, int> state_stats;
+    std::map<std::string, int> board_stats;
+
+    for (const auto& card : cards) {
+        type_stats[card.type.empty() ? "Unknown" : card.type]++;
+        state_stats[card.state.empty() ? "Unknown" : card.state]++;
+        board_stats[card.board.title.empty() ? "Unknown" : card.board.title]++;
+    }
+
+    std::cout << "\n=== Statistics ===" << std::endl;
+
+    std::cout << "By type:" << std::endl;
+    for (const auto& [type, count] : type_stats) {
+        std::cout << "  " << type << ": " << count << std::endl;
+    }
+
+    std::cout << "By state:" << std::endl;
+    for (const auto& [state, count] : state_stats) {
+        std::cout << "  " << state << ": " << count << std::endl;
+    }
+
+    std::cout << "By board:" << std::endl;
+    for (const auto& [board, count] : board_stats) {
+        std::cout << "  " << board << ": " << count << std::endl;
+    }
+}
+
+/**
+ * Вывод списка карточек
+ */
+void print_cards_list(const std::vector<Card>& cards)
+{
+    for (const auto& card : cards) {
+        std::cout << "#" << card.number << " [" << card.id << "] "
+                  << card.title << " (" << card.type
+                  << ", size=" << card.size
+                  << ", state=" << card.state
+                  << ", owner=" << card.owner.full_name << ")" << std::endl;
+    }
+}
+
+/**
+ * Вывод информации о примененных фильтрах
+ */
+void print_applied_filters(const std::map<std::string, std::string>& filters)
+{
+    if (filters.empty()) {
+        std::cout << "No filters applied" << std::endl;
+        return;
+    }
+
     std::cout << "Applied filters:" << std::endl;
     for (const auto& [key, value] : filters) {
         std::cout << "  " << key << ": " << value << std::endl;
     }
+}
 
+
+// Реализация handle_cards_filter (get cards with filters)
+int handle_cards_filter(Http_client& client, const std::string& host, const std::string& port,
+    const std::string& api_path, const std::string& token,
+    const std::map<std::string, std::string>& filters)
+{
+    // Инициализация параметров
+    kaiten::Card_filter_params filter_params;
+    kaiten::Pagination_params pagination(100);
+
+    // Применяем фильтры через карту обработчиков
+    apply_filters(filter_params, filters);
+
+    // Выводим информацию о фильтрах
+    std::cout << "Fetching filtered cards with pagination..." << std::endl;
+    print_applied_filters(filters);
+
+    // Получаем карточки с примененными фильтрами
     auto [status, cards] = kaiten::get_all_cards(client, host, port, api_path, token,
         filter_params, pagination.per_page());
 
-    if (status == 200) {
-        std::cout << "\n=== Filtered Cards Results ===" << std::endl;
-        std::cout << "Total cards found: " << cards.size() << std::endl;
-
-        // Группируем по типу для статистики
-        std::map<std::string, int> type_stats;
-        std::map<std::string, int> state_stats;
-
-        for (const auto& card : cards) {
-            type_stats[card.type]++;
-            state_stats[card.state]++;
-
-            std::cout << "#" << card.number << " [" << card.id << "] "
-                      << card.title << " (" << card.type
-                      << ", size=" << card.size
-                      << ", state=" << card.state
-                      << ", owner=" << card.owner.full_name << ")" << std::endl;
-        }
-
-        // Выводим статистику
-        std::cout << "\n=== Statistics ===" << std::endl;
-        std::cout << "By type:" << std::endl;
-        for (const auto& [type, count] : type_stats) {
-            std::cout << "  " << type << ": " << count << std::endl;
-        }
-
-        std::cout << "By state:" << std::endl;
-        for (const auto& [state, count] : state_stats) {
-            std::cout << "  " << state << ": " << count << std::endl;
-        }
-
-        return 0;
+    if (status != 200) {
+        std::cerr << "Failed to get filtered cards. Status: " << status << std::endl;
+        return 1;
     }
 
-    std::cerr << "Failed to get filtered cards. Status: " << status << std::endl;
-    return 1;
+    // Выводим результаты
+    std::cout << "\n=== Filtered Cards Results ===" << std::endl;
+    std::cout << "Total cards found: " << cards.size() << std::endl;
+
+    if (!cards.empty()) {
+        print_cards_list(cards);
+        print_cards_statistics(cards);
+    } else {
+        std::cout << "No cards matching the specified filters were found." << std::endl;
+    }
+
+    return 0;
 }
 
 
