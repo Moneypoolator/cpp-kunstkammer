@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <map>
 #include <nlohmann/json.hpp>
 
 #include "http_client.hpp"
@@ -29,9 +28,6 @@ int handle_get_user(Http_client& client, const std::string& host, const std::str
 
 // --boards-list (get all boards)
 int handle_boards_list(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path, const std::string& token);
-
-// --tasks (create cards from tasks JSON)
-int handle_tasks(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path, const std::string& token, const Config& config, const std::string& tasks_file_path);
 
 // --create-card (single create)
 int handle_create_card(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path, const std::string& token, const Config& config, const std::string& title, const std::string& type, int size, const std::vector<std::string>& tags);

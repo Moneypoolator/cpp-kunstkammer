@@ -154,7 +154,7 @@ make -j$(nproc)
 * --help, -h - показать справку
 
 Режимы работы
-* --tasks <file> - создать карточки из JSON файла
+* --backlog <file> - создать карточек из JSON файла
 * --create-card <title> - создать одну карточку
 * --get-card <number> - получить карточку по номеру
 * --cards-list - получить список карточек
@@ -192,9 +192,6 @@ make -j$(nproc)
 # Получить справку
 ./kaiten-client --help
 
-# Создать карточки из JSON файла
-./kaiten-client --tasks tasks.json --config config.json
-
 # Создать одну карточку
 ./kaiten-client --create-card "Заголовок задачи" --size 3 --tags "тег1,тег2"
 
@@ -216,6 +213,7 @@ make -j$(nproc)
 # Получить список досок
 ./kaiten-client --boards-list
 
+# Создать карточки из JSON файла
 ./kunstkammer --config config.json --backlog backlog.json
 ```
 
@@ -268,7 +266,7 @@ make -j$(nproc)
 Создание нескольких карточек из файла
 
 ```bash
-./kaiten-client --tasks weekly-tasks.json --config config.json --no-cache
+./kaiten-client --backlog weekly-tasks.json --config config.json --no-cache
 ```
 
 Получение карточек с фильтрацией
@@ -322,13 +320,13 @@ make -j$(nproc)
 ./kunstkammer --get-card "60127" --config config.json
 
 # Создать карточку
-./kunstkammer --create-card "Новая задача" --type "task" --size 3 --tags "urgent,backend"
+./kunstkammer --create-card "Новая задача" --size 3 --tags "urgent,backend"
 
 # Список карточек
-./kunstkammer --cards-list
+./kunstkammer --cards-list --config config.json
 
 # Создание из файла задач
-./kunstkammer --tasks tasks.json
+./kunstkammer --backlog tasks.json --config config.json
 
 # Получить все карточки с фильтрами
 ./kunstkammer --cards-filter "board_id=123,type=task" --config config.json

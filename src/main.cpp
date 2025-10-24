@@ -50,7 +50,6 @@ int main(int argc, char** argv)
     po::options_description desc("Allowed options");
     desc.add_options()
     ("help,h", "produce help message")
-    ("tasks", po::value<std::string>(), "Path to the tasks JSON file for task creation mode")
     ("report", po::value<std::string>(), "Path to the report JSON file for report import mode")
     ("get-card", po::value<std::string>(), "Card number to retrieve (get-card mode)")
     ("cards-list", "List cards (cards-list mode)")
@@ -87,7 +86,7 @@ int main(int argc, char** argv)
     }
 
     // Проверка наличия хотя бы одной опции
-    bool has_mode = option_exists(vm, "tasks") || option_exists(vm, "report") || option_exists(vm, "get-card") || option_exists(vm, "cards-list") || option_exists(vm, "cards-filter") || option_exists(vm, "users-list") || option_exists(vm, "get-user") || option_exists(vm, "boards-list") || option_exists(vm, "create-card") || option_exists(vm, "backlog");
+    bool has_mode = option_exists(vm, "report") || option_exists(vm, "get-card") || option_exists(vm, "cards-list") || option_exists(vm, "cards-filter") || option_exists(vm, "users-list") || option_exists(vm, "get-user") || option_exists(vm, "boards-list") || option_exists(vm, "create-card") || option_exists(vm, "backlog");
 
     if (!has_mode) {
         std::cerr << "Error: No operation mode specified" << std::endl;
@@ -219,10 +218,7 @@ int main(int argc, char** argv)
     Http_client client(ioc, ctx);
 
     // Обработка режимов работы
-    if (option_exists(vm, "tasks")) {
-        std::string tasks_file_name = vm["tasks"].as<std::string>();
-        return handle_tasks(client, host, port, api_path, config.token, config, tasks_file_name);
-    }
+
 
     if (option_exists(vm, "create-card")) {
         std::string title = vm["create-card"].as<std::string>();

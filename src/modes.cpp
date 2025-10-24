@@ -686,116 +686,121 @@ int handle_backlog(Http_client& client, const std::string& host, const std::stri
 // Карта для преобразования фильтров
 using FilterHandler = std::function<void(kaiten::Card_filter_params&, const std::string&)>;
 
-static const std::map<std::string, FilterHandler> filter_handlers = {
-    { "board_id", [](kaiten::Card_filter_params& params, const std::string& value) {
-         try {
-             params.board_id = std::stoll(value);
-         } catch (const std::exception& e) {
-             std::cerr << "Warning: Invalid board_id format: " << value << std::endl;
-         }
-     } },
+static std::map<std::string, FilterHandler> filter_handlers()
+{
+    return {
+        { "board_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+             try {
+                 params.board_id = std::stoll(value);
+             } catch (const std::exception& e) {
+                 std::cerr << "Warning: Invalid board_id format: " << value << std::endl;
+             }
+         } },
 
-    { "lane_id", [](kaiten::Card_filter_params& params, const std::string& value) {
-         try {
-             params.lane_id = std::stoll(value);
-         } catch (const std::exception& e) {
-             std::cerr << "Warning: Invalid lane_id format: " << value << std::endl;
-         }
-     } },
+        { "lane_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+             try {
+                 params.lane_id = std::stoll(value);
+             } catch (const std::exception& e) {
+                 std::cerr << "Warning: Invalid lane_id format: " << value << std::endl;
+             }
+         } },
 
-    { "column_id", [](kaiten::Card_filter_params& params, const std::string& value) {
-         try {
-             params.column_id = std::stoll(value);
-         } catch (const std::exception& e) {
-             std::cerr << "Warning: Invalid column_id format: " << value << std::endl;
-         }
-     } },
+        { "column_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+             try {
+                 params.column_id = std::stoll(value);
+             } catch (const std::exception& e) {
+                 std::cerr << "Warning: Invalid column_id format: " << value << std::endl;
+             }
+         } },
 
-    { "owner_id", [](kaiten::Card_filter_params& params, const std::string& value) {
-         try {
-             params.owner_id = std::stoll(value);
-         } catch (const std::exception& e) {
-             std::cerr << "Warning: Invalid owner_id format: " << value << std::endl;
-         }
-     } },
+        { "owner_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+             try {
+                 params.owner_id = std::stoll(value);
+             } catch (const std::exception& e) {
+                 std::cerr << "Warning: Invalid owner_id format: " << value << std::endl;
+             }
+         } },
 
-    { "member_id", [](kaiten::Card_filter_params& params, const std::string& value) {
-         try {
-             params.member_id = std::stoll(value);
-         } catch (const std::exception& e) {
-             std::cerr << "Warning: Invalid member_id format: " << value << std::endl;
-         }
-     } },
+        { "member_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+             try {
+                 params.member_id = std::stoll(value);
+             } catch (const std::exception& e) {
+                 std::cerr << "Warning: Invalid member_id format: " << value << std::endl;
+             }
+         } },
 
-    { "type_id", [](kaiten::Card_filter_params& params, const std::string& value) {
-         try {
-             params.type_id = std::stoll(value);
-         } catch (const std::exception& e) {
-             std::cerr << "Warning: Invalid type_id format: " << value << std::endl;
-         }
-     } },
+        { "type_id", [](kaiten::Card_filter_params& params, const std::string& value) {
+             try {
+                 params.type_id = std::stoll(value);
+             } catch (const std::exception& e) {
+                 std::cerr << "Warning: Invalid type_id format: " << value << std::endl;
+             }
+         } },
 
-    { "type", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.type_name = value;
-     } },
+        { "type", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.type_name = value;
+         } },
 
-    { "state", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.state = value;
-     } },
+        { "state", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.state = value;
+         } },
 
-    { "archived", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.archived = (value == "true" || value == "1" || value == "yes");
-     } },
+        { "archived", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.archived = (value == "true" || value == "1" || value == "yes");
+         } },
 
-    { "blocked", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.blocked = (value == "true" || value == "1" || value == "yes");
-     } },
+        { "blocked", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.blocked = (value == "true" || value == "1" || value == "yes");
+         } },
 
-    { "asap", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.asap = (value == "true" || value == "1" || value == "yes");
-     } },
+        { "asap", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.asap = (value == "true" || value == "1" || value == "yes");
+         } },
 
-    { "search", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.search = value;
-     } },
+        { "search", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.search = value;
+         } },
 
-    { "created_after", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.created_after = value;
-     } },
+        { "created_after", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.created_after = value;
+         } },
 
-    { "created_before", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.created_before = value;
-     } },
+        { "created_before", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.created_before = value;
+         } },
 
-    { "updated_after", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.updated_after = value;
-     } },
+        { "updated_after", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.updated_after = value;
+         } },
 
-    { "updated_before", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.updated_before = value;
-     } },
+        { "updated_before", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.updated_before = value;
+         } },
 
-    { "condition", [](kaiten::Card_filter_params& params, const std::string& value) {
-         try {
-             params.condition = std::stoi(value);
-         } catch (const std::exception& e) {
-             std::cerr << "Warning: Invalid condition format: " << value << std::endl;
-         }
-     } },
+        { "condition", [](kaiten::Card_filter_params& params, const std::string& value) {
+             try {
+                 params.condition = std::stoi(value);
+             } catch (const std::exception& e) {
+                 std::cerr << "Warning: Invalid condition format: " << value << std::endl;
+             }
+         } },
 
-    { "number", [](kaiten::Card_filter_params& params, const std::string& value) {
-         params.number = value;
-     } }
-};
+        { "number", [](kaiten::Card_filter_params& params, const std::string& value) {
+             params.number = value;
+         } }
+    };
+}
 
 /**
  * Применение фильтров к параметрам через карту обработчиков
  */
 void apply_filters(kaiten::Card_filter_params& filter_params, const std::map<std::string, std::string>& filters)
 {
+    auto filters_container = filter_handlers();
+
     for (const auto& [key, value] : filters) {
-        auto handler_it = filter_handlers.find(key);
-        if (handler_it != filter_handlers.end()) {
+        auto handler_it = filters_container.find(key);
+        if (handler_it != filters_container.end()) {
             try {
                 handler_it->second(filter_params, value);
             } catch (const std::exception& e) {
@@ -960,139 +965,7 @@ int handle_get_user(Http_client& client, const std::string& host, const std::str
     }
 }
 
-// Реализация handle_tasks
-int handle_tasks(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path,
-    const std::string& token, const Config& config, const std::string& tasks_file_path)
-{
-    std::ifstream tasks_file(tasks_file_path);
-    if (!tasks_file) {
-        std::cerr << "Could not open tasks file: " << tasks_file_path << std::endl;
-        return 1;
-    }
 
-    nlohmann::json tasks_json;
-    try {
-        tasks_file >> tasks_json;
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to parse tasks JSON: " << e.what() << std::endl;
-        return 1;
-    }
-
-    // Поддерживаем различные форматы tasks JSON
-    nlohmann::json tasks_array;
-    if (tasks_json.contains("schedule") && tasks_json["schedule"].contains("tasks")) {
-        tasks_array = tasks_json["schedule"]["tasks"];
-    } else if (tasks_json.contains("tasks") && tasks_json["tasks"].is_array()) {
-        tasks_array = tasks_json["tasks"];
-    } else if (tasks_json.is_array()) {
-        tasks_array = tasks_json;
-    } else {
-        std::cerr << "Invalid tasks JSON structure. Expected array or object with 'tasks' or 'schedule.tasks' field." << std::endl;
-        return 1;
-    }
-
-    if (!tasks_array.is_array()) {
-        std::cerr << "Tasks data is not an array." << std::endl;
-        return 1;
-    }
-
-    std::cout << "Found " << tasks_array.size() << " tasks to process" << std::endl;
-
-    int success_count = 0;
-    int error_count = 0;
-
-    for (size_t i = 0; i < tasks_array.size(); ++i) {
-        const auto& task = tasks_array[i];
-
-        Simple_card desired(config, task.value("title", ""));
-        // desired.board_id = config.boardId;
-        // desired.column_id = config.columnId;
-        // desired.lane_id = config.laneId;
-        // desired.type_id = 6; // Task Delivery - 6 //task.value("type", "6");
-        // desired.size = task.value("size", 0);
-        if (task.contains("size")) {
-            desired.size = task.value("size", 0);
-        }
-
-        // Добавляем общие теги
-        if (task.contains("tags") && task["tags"].is_array()) {
-            std::vector<std::string> entry_tags;
-            for (const auto& tag : task["tags"]) {
-                if (tag.is_string()) {
-                    entry_tags.push_back(tag.get<std::string>());
-                }
-            }
-            desired.add_tags(entry_tags);
-        }
-
-        // // Обработка тегов
-        // if (task.contains("tags") && task["tags"].is_array()) {
-        //     for (const auto& tag : task["tags"]) {
-        //         if (tag.is_string()) {
-        //             desired.tags.push_back(tag.get<std::string>());
-        //         }
-        //     }
-        // }
-
-        // // Обработка properties
-        // if (task.contains("properties") && task["properties"].is_object()) {
-        //     for (auto it = task["properties"].begin(); it != task["properties"].end(); ++it) {
-        //         if (it.value().is_string()) {
-        //             desired.set_property_string(it.key(), it.value().get<std::string>());
-        //         } else if (it.value().is_number()) {
-        //             desired.set_property_number(it.key(), it.value().get<int>());
-        //         } else if (it.value().is_boolean()) {
-        //             desired.set_property_string(it.key(), it.value().get<bool>() ? std::string("true"): std::string("false"));
-        //         }
-        //     }
-        // }
-
-        // // Добавляем теги из конфигурации
-        // if (!config.tags.empty()) {
-        //     desired.tags.insert(desired.tags.end(), config.tags.begin(), config.tags.end());
-        // }
-
-        // // Убираем дубликаты тегов
-        // std::sort(desired.tags.begin(), desired.tags.end());
-        // desired.tags.erase(std::unique(desired.tags.begin(), desired.tags.end()), desired.tags.end());
-
-        if (desired.title.empty()) {
-            std::cerr << "Task " << (i + 1) << " has empty title, skipping" << std::endl;
-            error_count++;
-            continue;
-        }
-
-        std::cout << "Creating card " << (i + 1) << "/" << tasks_array.size()
-                  << ": '" << desired.title << "'"
-                  << " (type_id: " << desired.type_id
-                  << ", board_id: " << desired.board_id
-                  << ", size: " << desired.size
-                  << ", tags: " << desired.tags.size()
-                  << ", properties: " << desired.properties.size() << ")" << std::endl;
-
-        auto [status, created] = kaiten::create_card(client, host, port, api_path, token, desired);
-
-        if (status == 200 || status == 201) {
-            std::cout << "✓ Created card #" << created.number << " [" << created.id << "] '" << created.title << "'" << std::endl;
-            success_count++;
-        } else {
-            std::cerr << "✗ Failed to create card. Status: " << status << std::endl;
-            error_count++;
-        }
-
-        // Небольшая задержка между созданиями карточек
-        if (i < tasks_array.size() - 1) {
-            // std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
-    }
-
-    std::cout << "\n=== Tasks Processing Complete ===" << std::endl;
-    std::cout << "Success: " << success_count << std::endl;
-    std::cout << "Errors: " << error_count << std::endl;
-    std::cout << "Total: " << tasks_array.size() << std::endl;
-
-    return error_count > 0 ? 1 : 0;
-}
 
 // Реализация handle_create_card
 int handle_create_card(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path,
