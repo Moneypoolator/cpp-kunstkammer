@@ -1,8 +1,13 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15)
 project(kunstkammer)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Политика для FindBoost
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
 
 # Поиск зависимостей
 find_package(Boost 1.71.0 REQUIRED COMPONENTS program_options system)
@@ -45,6 +50,10 @@ endif()
 # Вывод информации о конфигурации
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "Boost version: ${Boost_VERSION}")
+message(STATUS "Boost includes: ${Boost_INCLUDE_DIRS}")
+message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
+
 
 # Исходные файлы
 set(SOURCES
@@ -63,6 +72,7 @@ add_executable(kunstkammer ${SOURCES})
 target_include_directories(kunstkammer PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${Boost_INCLUDE_DIRS}
 )
 
 # Линковка
@@ -73,10 +83,6 @@ target_link_libraries(kunstkammer PRIVATE
     OpenSSL::Crypto
 )
 
-# Для Boost.Beast (header-only)
-target_include_directories(kunstkammer PRIVATE 
-    ${Boost_INCLUDE_DIRS}
-)
 
 # Дополнительные настройки для Release сборки
 if(CMAKE_BUILD_TYPE STREQUAL "Release")

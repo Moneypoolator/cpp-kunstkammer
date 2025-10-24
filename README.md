@@ -19,19 +19,22 @@ C++ клиент для работы с API системы управления 
 #### Ubuntu/Debian
 ```bash
 sudo apt update
-sudo apt install build-essential cmake libboost-system-dev libboost-program-options-dev libssl-dev
+sudo apt install build-essential cmake libboost-system-dev libboost-program-options-dev libssl-dev make g++
 ```
 
 #### CentOS/RHEL
 
 ```bash
-sudo yum install gcc-c++ cmake boost-devel openssl-devel
+sudo yum install gcc-c++ cmake make boost-devel openssl-devel
 ```
 
 #### macOS
 
 ```bash
-brew install cmake boost openssl
+# Установка Xcode Command Line Tools
+xcode-select --install
+
+brew install cmake make boost openssl
 ```
 
 #### MS Windows
