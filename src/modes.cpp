@@ -142,9 +142,9 @@ int handle_get_card(Http_client& client, const std::string& host, const std::str
 {
     std::cout << "Fetching card: " << card_number << std::endl;
 
-    auto [status, card] = kaiten::get_card(client, host, port, api_path, token, card_number);
-
-    if (status == 200) {
+    auto result = kaiten::get_card(client, host, port, api_path, token, card_number);
+    if (result.ok()) {
+        const auto& card = result.value();
         std::cout << "\n=== Card Retrieved Successfully ===" << std::endl;
         std::cout << "Number: #" << card.number << std::endl;
         std::cout << "Title: " << card.title << std::endl;
@@ -154,7 +154,6 @@ int handle_get_card(Http_client& client, const std::string& host, const std::str
         std::cout << "Column: " << card.column.title << std::endl;
         std::cout << "Lane: " << card.lane.title << std::endl;
         std::cout << "Owner: " << card.owner.full_name << std::endl;
-
         if (!card.properties.empty()) {
             std::cout << "Properties: ";
             for (const auto& value : card.properties) {
@@ -163,10 +162,10 @@ int handle_get_card(Http_client& client, const std::string& host, const std::str
             std::cout << std::endl;
         }
         return 0;
+    } else {
+        std::cerr << "Failed to get card: " << result.error()->message() << std::endl;
+        return 1;
     }
-
-    std::cerr << "Failed to get card. Status: " << status << std::endl;
-    return 1;
 }
 
 // Реализация handle_cards_list с правильной пагинацией offset/limit
@@ -340,16 +339,17 @@ std::int64_t find_responsible_user_id(
         return 0;
     }
 
-    auto [status, users] = kaiten::get_users_by_email(client, host, port, api_path, token, responsible_email);
-    if (status == 200 && !users.empty()) {
-        for (const auto& user : users) {
+    auto users_result = kaiten::get_users_by_email(client, host, port, api_path, token, responsible_email);
+    if (users_result.ok() && !users_result.value().empty()) {
+        for (const auto& user : users_result.value()) {
             if (user.email == responsible_email && user.id > 0) {
                 std::cout << "Found responsible user: " << user.full_name << " <" << user.email << ">" << std::endl;
                 return user.id;
             }
         }
+    } else if (!users_result.ok()) {
+        std::cerr << "Error fetching users by email: " << users_result.error()->message() << std::endl;
     }
-
     std::cout << "Responsible user not found for email: " << responsible_email << std::endl;
     return 0;
 }
@@ -438,7 +438,7 @@ void add_tags_from_json(
 /**
  * Создание карточки в системе
  */
-std::pair<int, Card> create_card_in_system(
+Result<Card> create_card_in_system(
     Http_client& client,
     const std::string& host,
     const std::string& port,
@@ -475,16 +475,16 @@ bool update_card_title_with_work_code(
     Simple_card changes;
     changes.title = updated_title.str();
 
-    auto [status, updated_card] = kaiten::update_card(
-        client, host, port, api_path, token, std::to_string(card_id), changes);
-
-    if (status == 200 || status == 201) {
-        std::cout << "Card title updated successfully with work code" << std::endl;
-        return true;
-    }
-
-    std::cerr << "Failed to update card title" << std::endl;
-    return false;
+        auto result = kaiten::update_card(
+            client, host, port, api_path, token, std::to_string(card_id), changes);
+        if (result.ok()) {
+            const auto& updated_card = result.value();
+            std::cout << "Card title updated: " << updated_card.title << std::endl;
+            return true;
+        } else {
+            std::cerr << "Failed to update card title: " << result.error()->message() << std::endl;
+            return false;
+        }
 }
 
 /**
@@ -500,11 +500,11 @@ void add_tags_to_created_card(
     const std::vector<std::string>& tags)
 {
     for (const auto& tag : tags) {
-        auto [status, ok] = kaiten::add_tag_to_card(client, host, port, api_path, token, card_id, tag);
-        if (status == 200 || status == 201) {
+        auto tag_result = kaiten::add_tag_to_card(client, host, port, api_path, token, card_id, tag);
+        if (tag_result.ok()) {
             std::cout << "Tag '" << tag << "' added successfully" << std::endl;
         } else {
-            std::cerr << "Failed to add tag '" << tag << "'" << std::endl;
+            std::cerr << "Failed to add tag '" << tag << "': " << tag_result.error()->message() << std::endl;
         }
     }
 }
@@ -525,13 +525,12 @@ bool link_card_to_parent(
         return false;
     }
 
-    auto [status, ok] = kaiten::add_child_card(client, host, port, api_path, token, parent_card_id, child_card_id);
-    if (status == 200 || status == 201) {
+    auto child_result = kaiten::add_child_card(client, host, port, api_path, token, parent_card_id, child_card_id);
+    if (child_result.ok()) {
         std::cout << "Child linked successfully to parent" << std::endl;
         return true;
     }
-
-    std::cerr << "Failed to link child to parent" << std::endl;
+    std::cerr << "Failed to link child to parent: " << child_result.error()->message() << std::endl;
     return false;
 }
 
@@ -653,12 +652,15 @@ int handle_backlog(Http_client& client, const std::string& host, const std::stri
     }
 
     // Получаем информацию о текущем пользователе
-    auto [status, current_user] = kaiten::get_current_user(client, host, port, api_path, config.token);
+    auto result = kaiten::get_current_user(client, host, port, api_path, config.token);
     std::int64_t current_user_id = 0;
-    if (status == 200) {
+    if (result.ok()) {
+        const auto& current_user = result.value();
         current_user_id = current_user.id;
         std::cout << "Current user id=" << current_user.id << " " << current_user.full_name
                   << " <" << current_user.email << ">" << std::endl;
+    } else {
+        std::cerr << "Failed to get current user: " << result.error()->message() << std::endl;
     }
 
     // Обрабатываем каждую запись в бэклоге
@@ -900,14 +902,14 @@ int handle_cards_filter(Http_client& client, const std::string& host, const std:
     print_applied_filters(filters);
 
     // Получаем карточки с примененными фильтрами
-    auto [status, cards] = kaiten::get_all_cards(client, host, port, api_path, token,
+    auto cards_result = kaiten::get_all_cards(client, host, port, api_path, token,
         filter_params, pagination.per_page());
 
-    if (status != 200) {
-        std::cerr << "Failed to get filtered cards. Status: " << status << std::endl;
+    if (!cards_result.ok()) {
+        std::cerr << "Failed to get filtered cards: " << cards_result.error()->message() << std::endl;
         return 1;
     }
-
+    const auto& cards = cards_result.value();
     // Выводим результаты
     std::cout << "\n=== Filtered Cards Results ===" << std::endl;
     std::cout << "Total cards found: " << cards.size() << std::endl;
@@ -918,7 +920,6 @@ int handle_cards_filter(Http_client& client, const std::string& host, const std:
     } else {
         std::cout << "No cards matching the specified filters were found." << std::endl;
     }
-
     return 0;
 }
 
@@ -932,9 +933,9 @@ int handle_get_user(Http_client& client, const std::string& host, const std::str
 {
     try {
         std::int64_t user_id_num = std::stoll(user_id);
-        auto [status, user] = kaiten::get_user(client, host, port, api_path, token, space_id, user_id_num);
-
-        if (status == 200) {
+        auto result = kaiten::get_user(client, host, port, api_path, token, space_id, user_id_num);
+        if (result.ok()) {
+            const auto& user = result.value();
             std::cout << "\n=== User Details ===" << std::endl;
             std::cout << "ID: " << user.id << std::endl;
             std::cout << "UID: " << user.uid << std::endl;
@@ -955,10 +956,8 @@ int handle_get_user(Http_client& client, const std::string& host, const std::str
             std::cout << "Updated: " << user.updated.toIso8601() << std::endl;
             return 0;
         }
-
-        std::cerr << "Failed to get user. Status: " << status << std::endl;
+        std::cerr << "Failed to get user: " << result.error()->message() << std::endl;
         return 1;
-
     } catch (const std::exception& e) {
         std::cerr << "Invalid user ID: " << user_id << " - " << e.what() << std::endl;
         return 1;
@@ -1046,9 +1045,9 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
         std::cout << std::endl;
     }
 
-    auto [status, created] = kaiten::create_card(client, host, port, api_path, token, desired);
-
-    if (status == 200 || status == 201) {
+    auto result = kaiten::create_card(client, host, port, api_path, token, desired);
+    if (result.ok()) {
+        const auto& created = result.value();
         std::cout << "\n✓ Card created successfully!" << std::endl;
         std::cout << "Number: #" << created.number << std::endl;
         std::cout << "ID: " << created.id << std::endl;
@@ -1057,7 +1056,6 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
         std::cout << "Board: " << created.board.title << std::endl;
         std::cout << "Column: " << created.column.title << std::endl;
         std::cout << "Lane: " << created.lane.title << std::endl;
-
         if (!created.tags.empty()) {
             std::cout << "Tags: ";
             for (size_t i = 0; i < created.tags.size(); ++i) {
@@ -1068,12 +1066,11 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
             }
             std::cout << std::endl;
         }
-
         return 0;
+    } else {
+        std::cerr << "✗ Failed to create card: " << result.error()->message() << std::endl;
+        return 1;
     }
-
-    std::cerr << "✗ Failed to create card. Status: " << status << std::endl;
-    return 1;
 }
 
 
@@ -1151,14 +1148,14 @@ int handle_cards_list_simple(Http_client& client, const std::string& host, const
 
     std::cout << "Fetching all cards with offset/limit pagination..." << std::endl;
 
-    auto [status, all_cards] = kaiten::get_all_cards(client, host, port, api_path, token,
+    auto all_cards_result = kaiten::get_all_cards(client, host, port, api_path, token,
         no_filters, page_size);
 
-    if (status != 200) {
-        std::cerr << "Failed to fetch cards. Status: " << status << std::endl;
+    if (!all_cards_result.ok()) {
+        std::cerr << "Failed to fetch cards: " << all_cards_result.error()->message() << std::endl;
         return 1;
     }
-
+    const auto& all_cards = all_cards_result.value();
     std::cout << "\n=== All Cards Results ===" << std::endl;
     std::cout << "Total cards fetched: " << all_cards.size() << std::endl;
 

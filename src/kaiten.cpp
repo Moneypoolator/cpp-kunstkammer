@@ -86,7 +86,7 @@ void debug_api_response(const std::string& response) {
 // Required fields: title, column_id, lane_id.
 // Optional fields used if present: type, size, tags.
 // Returns: { http_status, Card (parsed if success, otherwise default) }
-std::pair<int, Card> create_card(
+Result<Card> create_card(
     Http_client& client,
     const std::string& host,
     const std::string& port, 
@@ -126,27 +126,27 @@ std::pair<int, Card> create_card(
 
     std::cout << "Creating card with payload: " << body.dump(2) << std::endl;
 
-    auto [status, response] = client.post(host, port, target, body.dump(), token);
-    if (status == 200 || status == 201) {
+    auto result = client.post(host, port, target, body.dump(), token);
+    if (!result.ok()) {
+        return kaiten::make_error<Card>(result.error()->clone());
+    }
+    const auto& http = result.value();
+    if (http.status == 200 || http.status == 201) {
         try {
-            auto j = nlohmann::json::parse(response);
+            auto j = nlohmann::json::parse(http.body);
             Card created = j.get<Card>();
-            return { status, created };
+            return kaiten::make_success(created);
         } catch (...) {
-            std::cerr << "Create card: success status but failed to parse response." << std::endl;
-            return { status, Card {} };
+            return kaiten::make_error<Card>(std::make_unique<KaitenError>("Create card: success status but failed to parse response."));
         }
     }
-
-    log_api_error("Create card failed", status, response);
-
-    return { status, Card {} };
+    return kaiten::make_error<Card>(std::make_unique<KaitenError>("Create card failed: HTTP status " + std::to_string(http.status)));
 }
 
 // Updates an existing card. Target can be by numeric id or card number (string).
 // Only non-empty/meaningful fields are sent.
 // Returns: { http_status, Card (parsed if success) }
-std::pair<int, Card> update_card(
+Result<Card> update_card(
     Http_client& client,
     const std::string& host,
     const std::string& port, 
@@ -183,25 +183,25 @@ std::pair<int, Card> update_card(
     //     body["properties"] = changes.properties;
     // }
 
-    auto [status, response] = client.patch(host, port, target, body.dump(), token);
-    if (status == 200) {
+    auto result = client.patch(host, port, target, body.dump(), token);
+    if (!result.ok()) {
+        return kaiten::make_error<Card>(result.error()->clone());
+    }
+    const auto& http = result.value();
+    if (http.status == 200) {
         try {
-            auto j = nlohmann::json::parse(response);
+            auto j = nlohmann::json::parse(http.body);
             Card updated = j.get<Card>();
-            return { status, updated };
+            return kaiten::make_success(updated);
         } catch (...) {
-            std::cerr << "Update card: success status but failed to parse response." << std::endl;
-            return { status, Card {} };
+            return kaiten::make_error<Card>(std::make_unique<KaitenError>("Update card: success status but failed to parse response."));
         }
     }
-
-    log_api_error("Update card failed", status, response);
-
-    return { status, Card {} };
+    return kaiten::make_error<Card>(std::make_unique<KaitenError>("Update card failed: HTTP status " + std::to_string(http.status)));
 }
 
 // kaiten.hpp - добавить после update_card
-std::pair<int, Card> get_card(
+Result<Card> get_card(
     Http_client& client,
     const std::string& host,
     const std::string& port, 
@@ -235,32 +235,28 @@ std::pair<int, Card> get_card(
 
     std::string target = api_path + "/cards/" + id_or_number;
 
-    auto [status, response] = client.get(host, port, target, token);
-    if (status == 200) {
+    auto result = client.get(host, port, target, token);
+    if (!result.ok()) {
+        return kaiten::make_error<Card>(result.error()->clone());
+    }
+    const auto& http = result.value();
+    if (http.status == 200) {
         try {
-            auto j = nlohmann::json::parse(response);
+            auto j = nlohmann::json::parse(http.body);
             Card card = j.get<Card>();
-
-            // Сохраняем в кэш
             Api_cache::card_cache().put(card.id, card);
             Api_cache::card_number_cache().put(card.number, card);
-
             print_card_details(card, true);
-            return { status, card };
+            return kaiten::make_success(card);
         } catch (const std::exception& e) {
-            std::cerr << "Failed to parse card JSON: " << e.what() << std::endl;
-            std::cerr << "Raw response: " << response << std::endl;
-            return { status, Card {} };
+            return kaiten::make_error<Card>(std::make_unique<KaitenError>("Failed to parse card JSON: " + std::string(e.what())));
         }
     }
-
-    log_api_error("Get card failed", status, response);
-
-    return { status, Card {} };
+    return kaiten::make_error<Card>(std::make_unique<KaitenError>("Get card failed: HTTP status " + std::to_string(http.status)));
 }
 
 // Gets a specific user by ID
-std::pair<int, User> get_user(
+Result<User> get_user(
     Http_client& client,
     const std::string& host,
     const std::string& port, 
@@ -280,30 +276,26 @@ std::pair<int, User> get_user(
 
     std::string target = api_path + "/spaces/" + std::to_string(space_id) + "/users/" + std::to_string(user_id);
 
-    auto [status, response] = client.get(host, port, target, token);
-    if (status == 200) {
+    auto result = client.get(host, port, target, token);
+    if (!result.ok()) {
+        return kaiten::make_error<User>(result.error()->clone());
+    }
+    const auto& http = result.value();
+    if (http.status == 200) {
         try {
-            auto j = nlohmann::json::parse(response);
+            auto j = nlohmann::json::parse(http.body);
             User user = j.get<User>();
-
-            // Сохраняем в кэш
             Api_cache::user_cache().put(user.id, user);
-
-            return { status, user };
+            return kaiten::make_success(user);
         } catch (const std::exception& e) {
-            std::cerr << "Failed to parse user JSON: " << e.what() << std::endl;
-            std::cerr << "Raw response: " << response << std::endl;
-            return { status, User {} };
+            return kaiten::make_error<User>(std::make_unique<KaitenError>("Failed to parse user JSON: " + std::string(e.what())));
         }
     }
-
-    log_api_error("Get user failed", status, response);
-
-    return { status, User {} };
+    return kaiten::make_error<User>(std::make_unique<KaitenError>("Get user failed: HTTP status " + std::to_string(http.status)));
 }
 
 // Gets the current authenticated user
-std::pair<int, User> get_current_user(
+Result<User> get_current_user(
     Http_client& client,
     const std::string& host,
     const std::string& port, 
@@ -312,26 +304,25 @@ std::pair<int, User> get_current_user(
 {
     std::string target = api_path + "/users/current";
 
-    auto [status, response] = client.get(host, port, target, token);
-    if (status == 200) {
+    auto result = client.get(host, port, target, token);
+    if (!result.ok()) {
+        return kaiten::make_error<User>(result.error()->clone());
+    }
+    const auto& http = result.value();
+    if (http.status == 200) {
         try {
-            auto j = nlohmann::json::parse(response);
+            auto j = nlohmann::json::parse(http.body);
             User user = j.get<User>();
-            return { status, user };
+            return kaiten::make_success(user);
         } catch (const std::exception& e) {
-            std::cerr << "Failed to parse current user JSON: " << e.what() << std::endl;
-            std::cerr << "Raw response: " << response << std::endl;
-            return { status, User {} };
+            return kaiten::make_error<User>(std::make_unique<KaitenError>("Failed to parse current user JSON: " + std::string(e.what())));
         }
     }
-
-    log_api_error("Get current user failed", status, response);
-
-    return { status, User {} };
+    return kaiten::make_error<User>(std::make_unique<KaitenError>("Get current user failed: HTTP status " + std::to_string(http.status)));
 }
 
-// Gets users by email (filter). Returns array; caller can decide how to handle multiple matches
-std::pair<int, std::vector<User>> get_users_by_email(
+// Gets users by email (filter). Returns Result<vector<User>>
+Result<std::vector<User>> get_users_by_email(
     Http_client& client,
     const std::string& host,
     const std::string& port, 
@@ -341,31 +332,32 @@ std::pair<int, std::vector<User>> get_users_by_email(
 {
     std::string target = api_path + "/users?email=" + email; // assume email URL-safe; encode if needed
 
-    auto [status, response] = client.get(host, port, target, token);
-    if (status == 200) {
+    auto result = client.get(host, port, target, token);
+    if (!result.ok()) {
+        return kaiten::make_error<std::vector<User>>(result.error()->clone());
+    }
+    const auto& http = result.value();
+    if (http.status == 200) {
         try {
-            auto j = nlohmann::json::parse(response);
+            auto j = nlohmann::json::parse(http.body);
             std::vector<User> users;
             if (j.is_array()) {
                 users = j.get<std::vector<User>>();
             } else if (j.is_object() && j.contains("users") && j["users"].is_array()) {
                 users = j["users"].get<std::vector<User>>();
             }
-            return { status, users };
+            return kaiten::make_success(users);
         } catch (const std::exception& e) {
-            std::cerr << "Failed to parse users-by-email JSON: " << e.what() << std::endl;
-            std::cerr << "Raw response: " << response << std::endl;
-            return { status, {} };
+            return kaiten::make_error<std::vector<User>>(
+                std::make_unique<KaitenError>("Failed to parse users-by-email JSON: " + std::string(e.what())));
         }
     }
-
-    log_api_error("Get users by email failed", status, response);
-
-    return { status, {} };
+    return kaiten::make_error<std::vector<User>>(
+        std::make_unique<KaitenError>("Get users by email failed: HTTP status " + std::to_string(http.status)));
 }
 
 // Add child card relationship
-std::pair<int, bool> add_child_card(
+Result<void> add_child_card(
     Http_client& client,
     const std::string& host,
     const std::string& port, 
@@ -379,20 +371,21 @@ std::pair<int, bool> add_child_card(
         {"card_id", child_card_id}
     };
 
-    auto [status, response] = client.post(host, port, target, body.dump(), token);
-
-    if (status == 200 || status == 201) {
-        return { status, true };
+    auto result = client.post(host, port, target, body.dump(), token);
+    if (!result.ok()) {
+        return kaiten::make_error<void>(result.error()->clone());
     }
-
-    log_api_error("Add child failed", status, response);
-
-    return { status, false };
+    const auto& http = result.value();
+    if (http.status == 200 || http.status == 201) {
+        return kaiten::make_success();
+    }
+    return kaiten::make_error<void>(
+        std::make_unique<KaitenError>("Add child failed: HTTP status " + std::to_string(http.status)));
 }
 
 
 // Add tag to card
-std::pair<int, bool> add_tag_to_card(
+Result<void> add_tag_to_card(
     Http_client& client,
     const std::string& host,
     const std::string& port, 
@@ -406,15 +399,16 @@ std::pair<int, bool> add_tag_to_card(
         {"name", tag}
     };
 
-    auto [status, response] = client.post(host, port, target, body.dump(), token);
-
-    if (status == 200 || status == 201) {
-        return { status, true };
+    auto result = client.post(host, port, target, body.dump(), token);
+    if (!result.ok()) {
+        return kaiten::make_error<void>(result.error()->clone());
     }
-
-    log_api_error("Add tag failed", status, response);
-
-    return { status, false };
+    const auto& http = result.value();
+    if (http.status == 200 || http.status == 201) {
+        return kaiten::make_success();
+    }
+    return kaiten::make_error<void>(
+        std::make_unique<KaitenError>("Add tag failed: HTTP status " + std::to_string(http.status)));
 }
 
 
@@ -514,7 +508,7 @@ Paginated_result<Card> get_cards_paginated(
 }
 
 // Get all cards with automatic pagination using offset/limit
-std::pair<int, std::vector<Card>> get_all_cards(
+Result<std::vector<Card>> get_all_cards(
     Http_client& client,
     const std::string& host,
     const std::string& port, 
@@ -524,51 +518,49 @@ std::pair<int, std::vector<Card>> get_all_cards(
     int page_size)
 {
     std::vector<Card> all_cards;
-    int last_status = 200;
-    
     Pagination_params pagination;
     pagination.limit = (page_size > 100) ? 100 : page_size; // Kaiten API max limit is 100
-    
+
     int total_requests = 0;
     int max_requests = 1000; // защита от бесконечного цикла
-    
+
     std::cout << "Starting to fetch all cards using offset/limit pagination..." << std::endl;
-    
+
     while (total_requests < max_requests) {
         std::cout << "Fetching offset " << pagination.offset << ", limit " << pagination.limit << "..." << std::endl;
-        
+
         auto page_result = get_cards_paginated(client, host, port, api_path, token, 
                                              pagination, filters);
-        
+
         if (page_result.items.empty()) {
             std::cout << "No cards found at offset " << pagination.offset << std::endl;
             break;
         }
-        
+
         all_cards.insert(all_cards.end(), 
                         page_result.items.begin(), 
                         page_result.items.end());
-        
+
         std::cout << "Offset " << pagination.offset 
                   << ": " << page_result.items.size() << " cards" 
                   << ", total: " << all_cards.size() << std::endl;
-        
+
         // Проверяем, есть ли следующая страница
         if (!page_result.has_more) {
             std::cout << "No more cards available" << std::endl;
             break;
         }
-        
+
         // Увеличиваем offset для следующего запроса
         pagination.offset += pagination.limit;
         total_requests++;
-        
+
         // Задержка для соблюдения rate limits
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    
+
     std::cout << "Finished fetching cards. Total: " << all_cards.size() << std::endl;
-    return {last_status, all_cards};
+    return kaiten::make_success(all_cards);
 }
 
 // Improved paginated users with correct pagination
