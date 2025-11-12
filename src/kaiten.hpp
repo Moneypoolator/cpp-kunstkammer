@@ -3,8 +3,6 @@
 
 #include <string>
 #include <vector>
-#include <map>
-#include <optional>
 
 #include "card.hpp"
 #include "http_client.hpp"
