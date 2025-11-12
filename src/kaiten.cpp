@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 #include <utility>
+#include <vector>
+#include <future>
 #include <nlohmann/json.hpp>
 
 #include "kaiten.hpp"
@@ -513,7 +515,34 @@ Paginated_result<Card> get_cards_paginated(
     return result;
 }
 
+// Helper function to fetch a single page (used in map phase)
+namespace {
+std::vector<Card> fetch_page(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    const Card_filter_params& filters,
+    int offset,
+    int limit)
+{
+    Pagination_params pagination;
+    pagination.offset = offset;
+    pagination.limit = limit;
+    
+    auto page_result = get_cards_paginated(client, host, port, api_path, token, 
+                                          pagination, filters);
+    
+    std::cout << "Thread: Fetched page at offset " << offset 
+              << ": " << page_result.items.size() << " cards" << std::endl;
+    
+    return page_result.items;
+}
+} // namespace
+
 // Get all cards with automatic pagination using offset/limit
+// Map-Reduce implementation: Each page is fetched in a separate thread
 std::pair<int, std::vector<Card>> get_all_cards(
     Http_client& client,
     const std::string& host,
@@ -523,51 +552,87 @@ std::pair<int, std::vector<Card>> get_all_cards(
     const Card_filter_params& filters,
     int page_size)
 {
-    std::vector<Card> all_cards;
     int last_status = 200;
     
     Pagination_params pagination;
     pagination.limit = (page_size > 100) ? 100 : page_size; // Kaiten API max limit is 100
     
-    int total_requests = 0;
-    int max_requests = 1000; // защита от бесконечного цикла
+    std::cout << "Starting multithreaded fetch of all cards using map-reduce approach..." << std::endl;
     
-    std::cout << "Starting to fetch all cards using offset/limit pagination..." << std::endl;
+    // MAP PHASE: Discover pages and spawn threads for parallel fetching
+    // First, fetch the first page to determine if there are more pages
+    std::cout << "Fetching first page to determine total pages..." << std::endl;
     
-    while (total_requests < max_requests) {
-        std::cout << "Fetching offset " << pagination.offset << ", limit " << pagination.limit << "..." << std::endl;
-        
-        auto page_result = get_cards_paginated(client, host, port, api_path, token, 
-                                             pagination, filters);
-        
-        if (page_result.items.empty()) {
-            std::cout << "No cards found at offset " << pagination.offset << std::endl;
-            break;
-        }
-        
-        all_cards.insert(all_cards.end(), 
-                        page_result.items.begin(), 
-                        page_result.items.end());
-        
-        std::cout << "Offset " << pagination.offset 
-                  << ": " << page_result.items.size() << " cards" 
-                  << ", total: " << all_cards.size() << std::endl;
-        
-        // Проверяем, есть ли следующая страница
-        if (!page_result.has_more) {
-            std::cout << "No more cards available" << std::endl;
-            break;
-        }
-        
-        // Увеличиваем offset для следующего запроса
-        pagination.offset += pagination.limit;
-        total_requests++;
-        
-        // Задержка для соблюдения rate limits
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    pagination.offset = 0;
+    auto first_page_result = get_cards_paginated(client, host, port, api_path, token, 
+                                                 pagination, filters);
+    
+    if (first_page_result.items.empty()) {
+        std::cout << "No cards found." << std::endl;
+        return {last_status, {}};
     }
     
+    // Store first page results
+    std::vector<Card> all_cards = first_page_result.items;
+    std::cout << "Page 0 (offset 0): " << first_page_result.items.size() << " cards" << std::endl;
+    
+    // MAP PHASE: Spawn threads for remaining pages
+    std::vector<std::future<std::vector<Card>>> futures;
+    
+    if (first_page_result.has_more) {
+        // MAP PHASE: Spawn threads for remaining pages
+        // Since we don't know the exact total count upfront, we use a reasonable estimate
+        // Each page will be fetched in a separate thread (map phase)
+        // Results will be combined in the reduce phase
+        
+        // Use a reasonable maximum number of pages to fetch
+        // This prevents spawning too many threads while covering most use cases
+        int max_pages = 500; // Maximum pages to fetch (safety limit)
+        int current_offset = pagination.limit;
+        
+        std::cout << "Spawning threads for pages 1 to " << max_pages << "..." << std::endl;
+        
+        // MAP: Spawn threads for all pages (each page in a separate thread)
+        for (int page = 1; page <= max_pages; ++page) {
+            futures.push_back(
+                std::async(std::launch::async, fetch_page,
+                          std::ref(client), host, port, api_path, token,
+                          std::ref(filters), current_offset, pagination.limit)
+            );
+            current_offset += pagination.limit;
+        }
+        
+        std::cout << "Spawned " << futures.size() << " threads for parallel fetching" << std::endl;
+    }
+    
+    // REDUCE PHASE: Collect results from all futures and combine
+    std::cout << "Collecting results from " << futures.size() << " threads..." << std::endl;
+    
+    int pages_collected = 0;
+    int empty_pages_found = 0;
+    
+    for (auto& future : futures) {
+        try {
+            auto page_cards = future.get();
+            if (!page_cards.empty()) {
+                all_cards.insert(all_cards.end(), 
+                               page_cards.begin(), 
+                               page_cards.end());
+                pages_collected++;
+            } else {
+                empty_pages_found++;
+                // If we find an empty page, we've likely reached the end
+                // Continue collecting remaining pages but note that we're done
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error fetching page: " << e.what() << std::endl;
+        }
+    }
+    
+    std::cout << "Collected " << pages_collected << " non-empty pages, " 
+              << empty_pages_found << " empty pages" << std::endl;
     std::cout << "Finished fetching cards. Total: " << all_cards.size() << std::endl;
+    
     return {last_status, all_cards};
 }
 
