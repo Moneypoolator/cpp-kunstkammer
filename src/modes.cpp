@@ -389,7 +389,7 @@ Simple_card create_base_card_from_config(
 /**
  * Создание конкретной задачи из шаблона
  */
-Simple_card create_task_card(
+Simple_card parse_task_card_from_backlog(
     const Simple_card& base_card,
     const nlohmann::json& task_json,
     std::int64_t responsible_user_id)
@@ -638,7 +638,7 @@ std::pair<int, int> process_backlog_entry(
     // Обрабатываем каждую задачу
     for (const auto& task : entry["tasks"]) {
         // Создаем конкретную задачу
-        Simple_card task_card = create_task_card(base_card, task, responsible_user_id);
+        Simple_card task_card = parse_task_card_from_backlog(base_card, task, responsible_user_id);
 
         const bool should_update_title = !product_code.empty() && !work_code.empty();
         auto created_card = create_card_with_postprocessing(
