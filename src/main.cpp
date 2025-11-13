@@ -61,6 +61,7 @@ int main(int argc, char** argv)
     ("backlog", po::value<std::string>(), "Path to backlog JSON for batch card creation")
     ("type", po::value<std::string>()->default_value(""), "Card type for create-card")
     ("size", po::value<int>()->default_value(0), "Card size for create-card")
+    ("parent", po::value<int>()->default_value(0), "Parent card ID for create-card")
     ("tags", po::value<std::string>()->default_value(""), "Comma-separated tags for create-card")
     ("config", po::value<std::string>()->default_value("config.json"), "Path to the configuration file")
     ("no-cache", "Disable caching")
@@ -223,6 +224,7 @@ int main(int argc, char** argv)
     if (option_exists(vm, "create-card")) {
         std::string title = vm["create-card"].as<std::string>();
         int size = vm["size"].as<int>();
+        int parent = vm["parent"].as<int>();
 
         std::string type = vm["type"].as<std::string>();
 
@@ -237,7 +239,7 @@ int main(int argc, char** argv)
                 }
             }
         }
-        return handle_create_card(client, host, port, api_path, config.token, config, title, type, size, tags);
+        return handle_create_card(client, host, port, api_path, config.token, config, title, type, size, parent, tags);
     }
 
     if (option_exists(vm, "get-card")) {

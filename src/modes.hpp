@@ -30,7 +30,7 @@ int handle_get_user(Http_client& client, const std::string& host, const std::str
 int handle_boards_list(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path, const std::string& token);
 
 // --create-card (single create)
-int handle_create_card(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path, const std::string& token, const Config& config, const std::string& title, const std::string& type, int size, const std::vector<std::string>& tags);
+int handle_create_card(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path, const std::string& token, const Config& config, const std::string& title, const std::string& type, int size, std::int64_t parent_card_id, const std::vector<std::string>& tags);
 
 // --backlog (batch create from backlog JSON spec)
 int handle_backlog(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path, const std::string& token, const Config& config, const std::string& backlog_file_path);

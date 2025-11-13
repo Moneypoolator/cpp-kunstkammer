@@ -87,7 +87,7 @@ cmake --build build --config RelWithDebInfo
 ```bash
 # Клонирование репозитория
 git clone <repository-url>
-cd kaiten-client
+cd kunstkammer
 
 # Debug
 mkdir -p build && cd build
@@ -168,6 +168,7 @@ make -j$(nproc)
 Параметры создания карточек
 * --type <type> - тип карточки
 * --size <number> - размер карточки
+* --parent <number> - номер родительской карточки карточки
 * --tags <tags> - теги через запятую
 
 Управление кэшированием
@@ -192,28 +193,28 @@ make -j$(nproc)
 
 ```bash
 # Получить справку
-./kaiten-client --help
+./kunstkammer --help
 
 # Создать одну карточку
-./kaiten-client --create-card "Заголовок задачи" --size 3 --tags "тег1,тег2"
+./kunstkammer --create-card "Заголовок задачи" --size 3 --tags "тег1,тег2" --parent 66123
 
 # Получить информацию о карточке
-./kaiten-client --get-card "CARD-12345"
+./kunstkammer --get-card "CARD-12345"
 
 # Получить список всех карточек
-./kaiten-client --cards-list
+./kunstkammer --cards-list
 
 # Получить карточки с фильтрацией
-./kaiten-client --cards-filter "board_id=123,state=active,archived=false"
+./kunstkammer --cards-filter "board_id=123,state=active,archived=false"
 
 # Получить список пользователей
-./kaiten-client --users-list
+./kunstkammer --users-list
 
 # Получить информацию о пользователе
-./kaiten-client --get-user "123"
+./kunstkammer --get-user "123"
 
 # Получить список досок
-./kaiten-client --boards-list
+./kunstkammer --boards-list
 
 # Создать карточки из JSON файла
 ./kunstkammer --config config.json --backlog backlog.json
@@ -268,25 +269,25 @@ make -j$(nproc)
 Создание нескольких карточек из файла
 
 ```bash
-./kaiten-client --backlog weekly-tasks.json --config config.json --no-cache
+./kunstkammer --backlog weekly-tasks.json --config config.json --no-cache
 ```
 
 Получение карточек с фильтрацией
 
 ```bash
-./kaiten-client --cards-filter "board_id=123,state=active,archived=false" --limit 50
+./kunstkammer --cards-filter "board_id=123,state=active,archived=false" --limit 50
 ```
 
 Создание одной карточки
 
 ```bash
-./kaiten-client --create-card "Срочная задача" --type "Баг" --size 5 --tags "срочно,production" --config config.json
+./kunstkammer --create-card "Срочная задача" --type "Баг" --size 5 --tags "срочно,production" --config config.json
 ```
 
 Мониторинг производительности
 
 ```bash
-./kaiten-client --cards-list --cache-stats --rate-limit-stats
+./kunstkammer --cards-list --cache-stats --rate-limit-stats
 ```
 
 ### Формат фильтров

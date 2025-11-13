@@ -1006,7 +1006,7 @@ int handle_get_user(Http_client& client, const std::string& host, const std::str
 // Реализация handle_create_card
 int handle_create_card(Http_client& client, const std::string& host, const std::string& port, const std::string& api_path,
     const std::string& token, const Config& config, const std::string& title,
-    const std::string& type, int size, const std::vector<std::string>& tags)
+    const std::string& type, int size, std::int64_t parent_card_id, const std::vector<std::string>& tags)
 {
     if (title.empty()) {
         std::cerr << "Error: Card title cannot be empty" << std::endl;
@@ -1082,8 +1082,12 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
         std::cout << std::endl;
     }
 
+    if (parent_card_id > 0) {
+        std::cout << "Parent card ID: " << parent_card_id << std::endl;
+    }
+
     auto created_card = create_card_with_postprocessing(
-        client, host, port, api_path, token, desired, 0, "", "", false);
+        client, host, port, api_path, token, desired, parent_card_id, "", "", false);
 
     if (!created_card) {
         return 1;
