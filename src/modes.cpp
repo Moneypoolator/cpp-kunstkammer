@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <string>
 
 #include "card.hpp"
@@ -536,6 +537,49 @@ bool link_card_to_parent(
 }
 
 /**
+ * Создание карточки и выполнение дополнительных действий
+ */
+std::optional<Card> create_card_with_postprocessing(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    const Simple_card& card_data,
+    std::int64_t parent_card_id,
+    const std::string& product_code,
+    const std::string& work_code,
+    bool update_title)
+{
+    auto [status, created_card] = create_card_in_system(client, host, port, api_path, token, card_data);
+
+    if (status != 200 && status != 201) {
+        std::cerr << "✗ Failed to create card. Status: " << status << std::endl;
+        return std::nullopt;
+    }
+
+    std::cout << "✓ Created card #" << created_card.number << " [" << created_card.id
+              << "] '" << created_card.title << "'" << std::endl;
+
+    const std::int64_t child_card_id = created_card.id;
+
+    if (parent_card_id > 0) {
+        link_card_to_parent(client, host, port, api_path, token, parent_card_id, child_card_id);
+    }
+
+    if (!card_data.tags.empty()) {
+        add_tags_to_created_card(client, host, port, api_path, token, child_card_id, card_data.tags);
+    }
+
+    if (update_title && !product_code.empty() && !work_code.empty()) {
+        update_card_title_with_work_code(
+            client, host, port, api_path, token, child_card_id, product_code, work_code, card_data.title);
+    }
+
+    return created_card;
+}
+
+/**
  * Обработка одной записи бэклога
  */
 std::pair<int, int> process_backlog_entry(
@@ -596,30 +640,22 @@ std::pair<int, int> process_backlog_entry(
         // Создаем конкретную задачу
         Simple_card task_card = create_task_card(base_card, task, responsible_user_id);
 
-        // Создаем карточку в системе
-        auto [status, created_card] = create_card_in_system(client, host, port, api_path, token, task_card);
+        const bool should_update_title = !product_code.empty() && !work_code.empty();
+        auto created_card = create_card_with_postprocessing(
+            client,
+            host,
+            port,
+            api_path,
+            token,
+            task_card,
+            parent_card_id,
+            product_code,
+            work_code,
+            should_update_title);
 
-        if (status == 200 || status == 201) {
-            std::cout << "✓ Created card #" << created_card.number << " [" << created_card.id << "] '" << created_card.title << "'" << std::endl;
+        if (created_card) {
             success_count++;
-
-            // Выполняем дополнительные операции с созданной карточкой
-            std::int64_t child_card_id = created_card.id;
-
-            // Связываем с родителем
-            if (parent_card_id > 0) {
-                link_card_to_parent(client, host, port, api_path, token, parent_card_id, child_card_id);
-            }
-
-            // Добавляем теги
-            add_tags_to_created_card(client, host, port, api_path, token, child_card_id, task_card.tags);
-
-            // Обновляем заголовок с work code
-            update_card_title_with_work_code(client, host, port, api_path, token,
-                child_card_id, product_code, work_code, task_card.title);
-
         } else {
-            std::cerr << "✗ Failed to create card. Status: " << status << std::endl;
             error_count++;
         }
     }
@@ -1046,34 +1082,36 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
         std::cout << std::endl;
     }
 
-    auto [status, created] = kaiten::create_card(client, host, port, api_path, token, desired);
+    auto created_card = create_card_with_postprocessing(
+        client, host, port, api_path, token, desired, 0, "", "", false);
 
-    if (status == 200 || status == 201) {
-        std::cout << "\n✓ Card created successfully!" << std::endl;
-        std::cout << "Number: #" << created.number << std::endl;
-        std::cout << "ID: " << created.id << std::endl;
-        std::cout << "Title: " << created.title << std::endl;
-        std::cout << "Type: " << created.type << std::endl;
-        std::cout << "Board: " << created.board.title << std::endl;
-        std::cout << "Column: " << created.column.title << std::endl;
-        std::cout << "Lane: " << created.lane.title << std::endl;
-
-        if (!created.tags.empty()) {
-            std::cout << "Tags: ";
-            for (size_t i = 0; i < created.tags.size(); ++i) {
-                std::cout << created.tags[i].name;
-                if (i < created.tags.size() - 1) {
-                    std::cout << ", ";
-                }
-            }
-            std::cout << std::endl;
-        }
-
-        return 0;
+    if (!created_card) {
+        return 1;
     }
 
-    std::cerr << "✗ Failed to create card. Status: " << status << std::endl;
-    return 1;
+    const Card& created = *created_card;
+
+    std::cout << "\n✓ Card created successfully!" << std::endl;
+    std::cout << "Number: #" << created.number << std::endl;
+    std::cout << "ID: " << created.id << std::endl;
+    std::cout << "Title: " << created.title << std::endl;
+    std::cout << "Type: " << created.type << std::endl;
+    std::cout << "Board: " << created.board.title << std::endl;
+    std::cout << "Column: " << created.column.title << std::endl;
+    std::cout << "Lane: " << created.lane.title << std::endl;
+
+    if (!created.tags.empty()) {
+        std::cout << "Tags: ";
+        for (size_t i = 0; i < created.tags.size(); ++i) {
+            std::cout << created.tags[i].name;
+            if (i < created.tags.size() - 1) {
+                std::cout << ", ";
+            }
+        }
+        std::cout << std::endl;
+    }
+
+    return 0;
 }
 
 
