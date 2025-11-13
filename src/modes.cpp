@@ -1013,6 +1013,15 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
         return 1;
     }
 
+    // Получаем информацию о текущем пользователе
+    auto [status, current_user] = kaiten::get_current_user(client, host, port, api_path, config.token);
+    std::int64_t current_user_id = 0;
+    if (status == 200) {
+        current_user_id = current_user.id;
+        std::cout << "Current user id=" << current_user.id << " " << current_user.full_name
+                  << " <" << current_user.email << ">" << std::endl;
+    }
+
     // Получаем информацию о родительской карточке
     bool update_title = false;
     std::string sprint_number;
@@ -1032,8 +1041,13 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     Simple_card desired = create_base_card_from_config(config, sprint_number, role);
 
     desired.title = title;
+
+    // Назначаем ответственного
+    if (current_user_id > 0) {
+        desired.responsible_id = current_user_id;
+    }
     
-    // Переопределяем размер если указан явно
+    // Переопределяем размер, если указан явно
     if (size > 0) {
         desired.size = size;
     }
