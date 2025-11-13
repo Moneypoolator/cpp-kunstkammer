@@ -1013,18 +1013,25 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
         return 1;
     }
 
-    Simple_card desired;
-    desired = config; // основная конфигурация
-    desired.title = title;
-    
-    // Переопределяем тип если указан явно
-    if (!type.empty()) {
-        try {
-            desired.type_id = std::stoll(type);
-        } catch (const std::exception&) {
-            std::cerr << "Warning: Invalid type ID, using default from config" << std::endl;
-        }
+    // Получаем информацию о родительской карточке
+    bool update_title = false;
+    std::string sprint_number;
+    std::string product_code = "CAD";
+    std::string work_code = "XXX.XX";
+
+    if (parent_card_id > 0) {
+        std::string parent_id_str = std::to_string(parent_card_id);
+        fetch_parent_card_info(client, host, port, api_path, token, parent_id_str,
+            sprint_number, product_code, work_code);
+        update_title = true;
     }
+
+    std::string role = config.role;
+
+    // Создаем базовую карточку
+    Simple_card desired = create_base_card_from_config(config, sprint_number, role);
+
+    desired.title = title;
     
     // Переопределяем размер если указан явно
     if (size > 0) {
@@ -1087,7 +1094,7 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     }
 
     auto created_card = create_card_with_postprocessing(
-        client, host, port, api_path, token, desired, parent_card_id, "", "", false);
+        client, host, port, api_path, token, desired, parent_card_id, product_code, work_code, update_title);
 
     if (!created_card) {
         return 1;
