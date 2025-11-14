@@ -59,7 +59,6 @@ int main(int argc, char** argv)
     ("boards-list", "List all boards")
     ("create-card", po::value<std::string>(), "Create a card with given title (uses ColumnID/LaneID from config)")
     ("backlog", po::value<std::string>(), "Path to backlog JSON for batch card creation")
-    ("type", po::value<std::string>()->default_value(""), "Card type for create-card")
     ("size", po::value<int>()->default_value(0), "Card size for create-card")
     ("parent", po::value<int>()->default_value(0), "Parent card ID for create-card")
     ("tags", po::value<std::string>()->default_value(""), "Comma-separated tags for create-card")
@@ -226,8 +225,6 @@ int main(int argc, char** argv)
         int size = vm["size"].as<int>();
         int parent = vm["parent"].as<int>();
 
-        std::string type = vm["type"].as<std::string>();
-
         std::string tags_csv = vm["tags"].as<std::string>();
         std::vector<std::string> tags;
         if (!tags_csv.empty()) {
@@ -239,7 +236,7 @@ int main(int argc, char** argv)
                 }
             }
         }
-        return handle_create_card(client, host, port, api_path, config.token, config, title, type, size, parent, tags);
+        return handle_create_card(client, host, port, api_path, config.token, config, title, size, parent, tags);
     }
 
     if (option_exists(vm, "get-card")) {

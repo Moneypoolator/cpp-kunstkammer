@@ -166,7 +166,6 @@ make -j$(nproc)
 * --boards-list - получить список досок
 
 Параметры создания карточек
-* --type <type> - тип карточки
 * --size <number> - размер карточки
 * --parent <number> - номер родительской карточки карточки
 * --tags <tags> - теги через запятую
@@ -281,7 +280,7 @@ make -j$(nproc)
 Создание одной карточки
 
 ```bash
-./kunstkammer --create-card "Срочная задача" --type "Баг" --size 5 --tags "срочно,production" --config config.json
+./kunstkammer --create-card "Срочная задача" --size 5 --tags "срочно,production" --config config.json
 ```
 
 Мониторинг производительности
