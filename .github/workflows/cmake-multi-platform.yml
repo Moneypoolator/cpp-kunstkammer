@@ -91,11 +91,11 @@ jobs:
       
     - name: Install Boost with vcpkg spte I on Windows
       if: runner.os == 'Windows'
-      run: .\vcpkg.exe install boost-program-options boost-system boost-beast openssl:x64-windows
+      run: cd vcpkg && .\vcpkg.exe install boost-program-options boost-system boost-beast openssl:x64-windows
 
     - name: Install Boost with vcpkg spet II on Windows
       if: runner.os == 'Windows'
-      run: .\vcpkg.exe integrate install
+      run: cd vcpkg && .\vcpkg.exe integrate install
 
 
     - name: Configure CMake
