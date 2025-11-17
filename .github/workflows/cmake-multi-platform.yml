@@ -84,9 +84,19 @@ jobs:
     - name: Install VCpkg on Windows
       if: runner.os == 'Windows'
       run: git clone https://github.com/microsoft/vcpkg.git 
+      
     - name: Install Boost on Windows
       if: runner.os == 'Windows'
       run: cd vcpkg && .\bootstrap-vcpkg.bat
+      
+    - name: Install Boost with vcpkg spte I on Windows
+      if: runner.os == 'Windows'
+      run: .\vcpkg.exe install boost-program-options boost-system boost-beast openssl:x64-windows
+
+    - name: Install Boost with vcpkg spet II on Windows
+      if: runner.os == 'Windows'
+      run: .\vcpkg.exe integrate install
+
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
