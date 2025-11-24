@@ -12,6 +12,7 @@ endif()
 # Поиск зависимостей
 find_package(Boost 1.71.0 REQUIRED COMPONENTS program_options system)
 find_package(OpenSSL REQUIRED)
+find_package(GTest REQUIRED)
 
 # Настройка компилятора
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -64,23 +65,53 @@ set(SOURCES
     src/card_utils.cpp
     src/kaiten.cpp
     src/rate_limiter.cpp
+    src/card_operations.cpp
+    src/user_operations.cpp
+    src/board_operations.cpp
+    src/error_handler.cpp
+    src/offline_manager.cpp
 )
 
-add_executable(kunstkammer ${SOURCES})
+# Исходные файлы для библиотеки
+set(LIB_SOURCES
+    src/http_client.cpp
+    src/modes.cpp
+    src/card.cpp
+    src/card_utils.cpp
+    src/kaiten.cpp
+    src/rate_limiter.cpp
+    src/card_operations.cpp
+    src/user_operations.cpp
+    src/board_operations.cpp
+    src/error_handler.cpp
+    src/offline_manager.cpp
+)
+
+# Создание библиотеки для общего кода
+add_library(kunstkammer_lib ${LIB_SOURCES})
+
+add_executable(kunstkammer src/main.cpp)
 
 # Подключение заголовков
-target_include_directories(kunstkammer PRIVATE 
+target_include_directories(kunstkammer PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${Boost_INCLUDE_DIRS}
+)
+
+target_include_directories(kunstkammer_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${Boost_INCLUDE_DIRS}
 )
 
 # Линковка
-target_link_libraries(kunstkammer PRIVATE 
-    Boost::program_options 
-    Boost::system 
-    OpenSSL::SSL 
+target_link_libraries(kunstkammer PRIVATE
+    Boost::program_options
+    Boost::system
+    OpenSSL::SSL
     OpenSSL::Crypto
+    kunstkammer_lib
 )
 
 
@@ -135,4 +166,22 @@ message(STATUS "  make kunstkammer      - Build with current configuration")
 message(STATUS "  make build-debug      - Build Debug version")
 message(STATUS "  make build-release    - Build Release version")
 message(STATUS "  make build-all        - Build both Debug and Release")
+
+# Тесты
+enable_testing()
+
+# Создание теста для offline manager
+add_executable(offline_manager_test test/offline_manager_test.cpp)
+target_include_directories(offline_manager_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${Boost_INCLUDE_DIRS}
+)
+target_link_libraries(offline_manager_test PRIVATE
+    GTest::gtest_main
+    kunstkammer_lib
+)
+
+# Добавление теста
+add_test(NAME offline_manager_test COMMAND offline_manager_test)
 

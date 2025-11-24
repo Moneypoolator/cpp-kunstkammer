@@ -4,7 +4,7 @@
 set -e  # Выход при ошибке
 
 PROJECT_NAME="kunstkammer"
-BUILD_DIR="build"
+BUILD_DIR="build_tmp"
 DEFAULT_BUILD_TYPE="RelWithDebInfo"
 
 # Функция для проверки зависимостей

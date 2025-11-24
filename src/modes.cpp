@@ -12,6 +12,9 @@
 #include "card_utils.hpp"
 #include "kaiten.hpp"
 #include "pagination.hpp"
+#include "card_operations.hpp"
+#include "user_operations.hpp"
+#include "board_operations.hpp"
 
 // Улучшенная функция пагинации с поддержкой offset/limit
 namespace {
@@ -192,7 +195,7 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
     const std::string& api_path, const std::string& token)
 {
     kaiten::Pagination_params params;
-    params.limit = 100; // Kaiten API максимум
+    params.limit = 50; // Уменьшаем лимит для более плавной загрузки
     params.sort_by = "updated";
     params.sort_order = "desc";
 
@@ -200,11 +203,14 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
     std::mutex cards_mutex; // Для потокобезопасного доступа к all_cards
 
     // Определяем количество доступных потоков
-    unsigned int num_threads = std::thread::hardware_concurrency();
-    if (num_threads == 0) {
-        num_threads = 4; // Fallback если hardware_concurrency() вернул 0
+    // Определяем количество доступных потоков с ограничением
+    unsigned int max_threads = std::thread::hardware_concurrency();
+    if (max_threads == 0) {
+        max_threads = 4; // Fallback если hardware_concurrency() вернул 0
     }
-    std::cout << "Using " << num_threads << " threads for parallel fetching" << std::endl;
+    // Ограничиваем количество потоков для экономии ресурсов
+    max_threads = std::min(max_threads, 6u); // Максимум 6 потоков
+    std::cout << "Using " << max_threads << " threads for parallel fetching" << std::endl;
 
     std::cout << "Fetching all cards using multithreaded Kaiten API pagination (offset/limit)..." << std::endl;
 
@@ -238,7 +244,7 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
             std::vector<int> batch_offsets;
 
             // Генерируем запросы для текущего батча (на основе количества потоков)
-            for (unsigned int i = 0; i < num_threads; ++i) {
+            for (unsigned int i = 0; i < max_threads; ++i) {
                 kaiten::Pagination_params page_params = params;
                 page_params.offset = current_offset;
 
@@ -1226,7 +1232,7 @@ int handle_users_list(Http_client& client, const std::string& host, const std::s
     const std::string& api_path, const std::string& token)
 {
     kaiten::Pagination_params params;
-    params.limit = 100; // Kaiten API максимум
+    params.limit = 50; // Уменьшаем лимит для более плавной загрузки
 
     auto user_fetcher = [](Http_client& client, const std::string& host, const std::string& port,
                             const std::string& api_path, const std::string& token,
