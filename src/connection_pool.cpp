@@ -175,14 +175,14 @@ namespace kaiten {
         auto now = std::chrono::steady_clock::now();
         
         // Remove expired connections from idle queue
-        std::queue<std::shared_ptr<Connection_info>> _valididle;
+        std::queue<std::shared_ptr<Connection_info>> valididle;
         while (!_idle_connections.empty()) {
             auto conn_info = _idle_connections.front();
             _idle_connections.pop();
             
             if (conn_info && 
                 (now - conn_info->last_used) < _connection_timeout) {
-                _valididle.push(conn_info);
+                valididle.push(conn_info);
             } else if (conn_info) {
                 // Remove from _all_connections as well
                 auto it = std::find(_all_connections.begin(), _all_connections.end(), conn_info);
@@ -191,7 +191,7 @@ namespace kaiten {
                 }
             }
         }
-        _idle_connections = std::move(_valididle);
+        _idle_connections = std::move(valididle);
 
         // Remove expired connections from _all_connections
         auto it = _all_connections.begin();
