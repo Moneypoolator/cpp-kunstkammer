@@ -1,34 +1,34 @@
 #include <gtest/gtest.h>
 #include "../src/connection_pool.hpp"
-#include "../src/http_client.hpp"
+// #include "../src/http_client.hpp"
 #include <boost/asio.hpp>
 
 namespace net = boost::asio;
 namespace ssl = net::ssl;
 using tcp = net::ip::tcp;
 
-class ConnectionPoolTest : public ::testing::Test {
+class Connection_pool_test : public ::testing::Test {
 protected:
     void SetUp() override {
         // Initialize Boost ASIO context and SSL context
-        ioc_ = std::make_unique<net::io_context>();
-        ctx_ = std::make_unique<ssl::context>(ssl::context::tlsv12_client);
-        ctx_->set_verify_mode(ssl::verify_none);
+        _ioc = std::make_unique<net::io_context>();
+        _ctx = std::make_unique<ssl::context>(ssl::context::tlsv12_client);
+        _ctx->set_verify_mode(ssl::verify_none);
     }
 
     void TearDown() override {
         // Clean up
-        ioc_.reset();
-        ctx_.reset();
+        _ioc.reset();
+        _ctx.reset();
     }
 
-    std::unique_ptr<net::io_context> ioc_;
-    std::unique_ptr<ssl::context> ctx_;
+    std::unique_ptr<net::io_context> _ioc;
+    std::unique_ptr<ssl::context> _ctx;
 };
 
-TEST_F(ConnectionPoolTest, Initialization) {
+TEST_F(Connection_pool_test, Initialization) {
     // Create connection pool
-    auto pool = std::make_shared<kaiten::Connection_pool>(*ioc_, *ctx_, 5);
+    auto pool = std::make_shared<kaiten::Connection_pool>(*_ioc, *_ctx, 5);
     
     // Check initial stats
     auto stats = pool->get_stats();
@@ -37,9 +37,9 @@ TEST_F(ConnectionPoolTest, Initialization) {
     EXPECT_EQ(stats.total_connections, 0);
 }
 
-TEST_F(ConnectionPoolTest, GetConnection) {
+TEST_F(Connection_pool_test, GetConnection) {
     // Create connection pool
-    auto pool = std::make_shared<kaiten::Connection_pool>(*ioc_, *ctx_, 5);
+    auto pool = std::make_shared<kaiten::Connection_pool>(*_ioc, *_ctx, 5);
     
     // Try to get a connection (this will fail because we're not actually connecting to a server)
     auto result = pool->get_connection("localhost", "80");
@@ -55,9 +55,9 @@ TEST_F(ConnectionPoolTest, GetConnection) {
     EXPECT_EQ(stats.total_connections, 0);
 }
 
-TEST_F(ConnectionPoolTest, PoolStatistics) {
+TEST_F(Connection_pool_test, PoolStatistics) {
     // Create connection pool
-    auto pool = std::make_shared<kaiten::Connection_pool>(*ioc_, *ctx_, 3);
+    auto pool = std::make_shared<kaiten::Connection_pool>(*_ioc, *_ctx, 3);
     
     // Check initial stats
     auto stats = pool->get_stats();

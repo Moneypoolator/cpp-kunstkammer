@@ -12,9 +12,9 @@
 #include "card_utils.hpp"
 #include "kaiten.hpp"
 #include "pagination.hpp"
-#include "card_operations.hpp"
-#include "user_operations.hpp"
-#include "board_operations.hpp"
+// #include "card_operations.hpp"
+// #include "user_operations.hpp"
+// #include "board_operations.hpp"
 
 // Улучшенная функция пагинации с поддержкой offset/limit
 namespace {
@@ -209,7 +209,7 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
         max_threads = 4; // Fallback если hardware_concurrency() вернул 0
     }
     // Ограничиваем количество потоков для экономии ресурсов
-    max_threads = std::min(max_threads, 6u); // Максимум 6 потоков
+    max_threads = std::min(max_threads, 6U); // Максимум 6 потоков
     std::cout << "Using " << max_threads << " threads for parallel fetching" << std::endl;
 
     std::cout << "Fetching all cards using multithreaded Kaiten API pagination (offset/limit)..." << std::endl;

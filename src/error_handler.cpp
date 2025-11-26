@@ -7,7 +7,7 @@
 namespace kaiten {
 namespace error_handler {
 
-    void log_error(const ErrorInfo& error, const std::string& context) {
+    void log_error(const Error_info& error, const std::string& context) {
         std::ostringstream oss;
         
         if (!context.empty()) {
@@ -17,28 +17,28 @@ namespace error_handler {
         oss << "Error: ";
         
         switch (error.category) {
-            case ErrorCategory::NETWORK:
+            case Error_category::NETWORK:
                 oss << "[NETWORK] ";
                 break;
-            case ErrorCategory::AUTHENTICATION:
+            case Error_category::AUTHENTICATION:
                 oss << "[AUTH] ";
                 break;
-            case ErrorCategory::API:
+            case Error_category::API:
                 oss << "[API] ";
                 break;
-            case ErrorCategory::PARSING:
+            case Error_category::PARSING:
                 oss << "[PARSING] ";
                 break;
-            case ErrorCategory::VALIDATION:
+            case Error_category::VALIDATION:
                 oss << "[VALIDATION] ";
                 break;
-            case ErrorCategory::CONFIGURATION:
+            case Error_category::CONFIGURATION:
                 oss << "[CONFIG] ";
                 break;
-            case ErrorCategory::FILESYSTEM:
+            case Error_category::FILESYSTEM:
                 oss << "[FILESYSTEM] ";
                 break;
-            case ErrorCategory::UNKNOWN:
+            case Error_category::UNKNOWN:
                 oss << "[UNKNOWN] ";
                 break;
         }
@@ -60,32 +60,32 @@ namespace error_handler {
         }
     }
     
-    std::string format_error_message(const ErrorInfo& error) {
+    std::string format_error_message(const Error_info& error) {
         std::ostringstream oss;
         
         switch (error.category) {
-            case ErrorCategory::NETWORK:
+            case Error_category::NETWORK:
                 oss << "Network error: ";
                 break;
-            case ErrorCategory::AUTHENTICATION:
+            case Error_category::AUTHENTICATION:
                 oss << "Authentication error: ";
                 break;
-            case ErrorCategory::API:
+            case Error_category::API:
                 oss << "API error: ";
                 break;
-            case ErrorCategory::PARSING:
+            case Error_category::PARSING:
                 oss << "Data parsing error: ";
                 break;
-            case ErrorCategory::VALIDATION:
+            case Error_category::VALIDATION:
                 oss << "Validation error: ";
                 break;
-            case ErrorCategory::CONFIGURATION:
+            case Error_category::CONFIGURATION:
                 oss << "Configuration error: ";
                 break;
-            case ErrorCategory::FILESYSTEM:
+            case Error_category::FILESYSTEM:
                 oss << "File system error: ";
                 break;
-            case ErrorCategory::UNKNOWN:
+            case Error_category::UNKNOWN:
                 oss << "Error: ";
                 break;
         }
@@ -99,15 +99,15 @@ namespace error_handler {
         return oss.str();
     }
     
-    std::string generate_recovery_suggestion(const ErrorInfo& error) {
+    std::string generate_recovery_suggestion(const Error_info& error) {
         switch (error.category) {
-            case ErrorCategory::NETWORK:
+            case Error_category::NETWORK:
                 return "Check your internet connection and try again. If the problem persists, check if the Kaiten API is accessible.";
                 
-            case ErrorCategory::AUTHENTICATION:
+            case Error_category::AUTHENTICATION:
                 return "Verify your API token is correct and has the necessary permissions. Check your configuration file.";
                 
-            case ErrorCategory::API:
+            case Error_category::API:
                 if (error.http_status == 400) {
                     return "The request was malformed. Check your input parameters and try again.";
                 } else if (error.http_status == 401) {
@@ -121,27 +121,27 @@ namespace error_handler {
                 }
                 return "An API error occurred. Check the error details and try again.";
                 
-            case ErrorCategory::PARSING:
+            case Error_category::PARSING:
                 return "Data parsing failed. This may indicate an issue with the API response format. Please report this issue.";
                 
-            case ErrorCategory::VALIDATION:
+            case Error_category::VALIDATION:
                 return "Input validation failed. Check your input values and try again.";
                 
-            case ErrorCategory::CONFIGURATION:
+            case Error_category::CONFIGURATION:
                 return "Configuration error detected. Check your configuration file and ensure all required fields are present.";
                 
-            case ErrorCategory::FILESYSTEM:
+            case Error_category::FILESYSTEM:
                 return "File system error. Check file permissions and available disk space.";
                 
-            case ErrorCategory::UNKNOWN:
+            case Error_category::UNKNOWN:
             default:
                 return "An unexpected error occurred. Check the error details and try again.";
         }
     }
     
-    ErrorInfo parse_api_error(int status, const std::string& response, const std::string& action) {
-        ErrorInfo error;
-        error.category = ErrorCategory::API;
+    Error_info parse_api_error(int status, const std::string& response, const std::string& action) {
+        Error_info error;
+        error.category = Error_category::API;
         error.http_status = status;
         error.message = action + " failed";
         error.raw_response = response;
@@ -168,9 +168,9 @@ namespace error_handler {
         return error;
     }
     
-    ErrorInfo handle_http_error(int status, const std::string& response, const std::string& action) {
-        ErrorInfo error;
-        error.category = ErrorCategory::API;
+    Error_info handle_http_error(int status, const std::string& response, const std::string& action) {
+        Error_info error;
+        error.category = Error_category::API;
         error.http_status = status;
         error.message = action + " failed";
         error.raw_response = response;
@@ -181,7 +181,7 @@ namespace error_handler {
                 break;
             case 401:
                 error.message += " - Unauthorized";
-                error.category = ErrorCategory::AUTHENTICATION;
+                error.category = Error_category::AUTHENTICATION;
                 break;
             case 402:
                 error.message += " - Payment Required";
@@ -230,9 +230,9 @@ namespace error_handler {
         return error;
     }
     
-    ErrorInfo handle_parsing_error(const std::exception& e, const std::string& context, const std::string& data) {
-        ErrorInfo error;
-        error.category = ErrorCategory::PARSING;
+    Error_info handle_parsing_error(const std::exception& e, const std::string& context, const std::string& data) {
+        Error_info error;
+        error.category = Error_category::PARSING;
         error.message = "Failed to parse " + context;
         error.details = e.what();
         error.raw_response = data;
@@ -240,18 +240,18 @@ namespace error_handler {
         return error;
     }
     
-    ErrorInfo handle_network_error(const std::exception& e, const std::string& operation) {
-        ErrorInfo error;
-        error.category = ErrorCategory::NETWORK;
+    Error_info handle_network_error(const std::exception& e, const std::string& operation) {
+        Error_info error;
+        error.category = Error_category::NETWORK;
         error.message = "Network error during " + operation;
         error.details = e.what();
         error.recovery_suggestion = generate_recovery_suggestion(error);
         return error;
     }
     
-    ErrorInfo handle_config_error(const std::string& message, const std::string& file_path) {
-        ErrorInfo error;
-        error.category = ErrorCategory::CONFIGURATION;
+    Error_info handle_config_error(const std::string& message, const std::string& file_path) {
+        Error_info error;
+        error.category = Error_category::CONFIGURATION;
         error.message = "Configuration error";
         error.details = message;
         if (!file_path.empty()) {

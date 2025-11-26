@@ -7,7 +7,7 @@
 
 #include "cache.hpp"
 #include "card.hpp"
-#include "card_utils.hpp"
+// #include "card_utils.hpp"
 #include "http_client.hpp"
 #include "pagination.hpp"
 #include "error_handler.hpp"
@@ -52,8 +52,8 @@ std::pair<int, User> get_user(
             kaiten::error_handler::log_error(error, "get_user");
             return std::make_pair(status, User {});
         } catch (...) {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::PARSING,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::PARSING,
                 status,
                 "Failed to parse user JSON",
                 "Unknown parsing error",
@@ -91,8 +91,8 @@ std::pair<int, User> get_current_user(
             kaiten::error_handler::log_error(error, "get_current_user");
             return std::make_pair(status, User {});
         } catch (...) {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::PARSING,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::PARSING,
                 status,
                 "Failed to parse current user JSON",
                 "Unknown parsing error",
@@ -136,8 +136,8 @@ std::pair<int, std::vector<User>> get_users_by_email(
             kaiten::error_handler::log_error(error, "get_users_by_email");
             return std::make_pair(status, std::vector<User>{});
         } catch (...) {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::PARSING,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::PARSING,
                 status,
                 "Failed to parse users-by-email JSON",
                 "Unknown parsing error",
@@ -189,8 +189,8 @@ Paginated_result<User> get_users_paginated(
         if (json.is_array()) {
             result.items = json.get<std::vector<User>>();
         } else {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::API,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::API,
                 status,
                 "Unexpected response format for users",
                 "Response is not an array",

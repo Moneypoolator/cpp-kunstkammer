@@ -1,7 +1,7 @@
 #include "offline_manager.hpp"
 #include <fstream>
 #include <sstream>
-#include <iomanip>
+// #include <iomanip>
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <algorithm>
@@ -12,35 +12,35 @@ namespace kaiten {
 namespace offline {
 
     // Constructor
-    OfflineManager::OfflineManager(const std::string& storage_path) :
-        storage_path_(storage_path),
-        initialized_(false),
-        offline_mode_(false),
-        last_sync_(std::chrono::system_clock::time_point::min())
+    Offline_manager::Offline_manager(const std::string& storage_path) :
+        _storage_path(storage_path),
+        _initialized(false),
+        _offline_mode(false),
+        _last_sync(std::chrono::system_clock::time_point::min())
     {
     }
 
     // Destructor
-    OfflineManager::~OfflineManager()
+    Offline_manager::~Offline_manager()
     {
-        if (initialized_) {
+        if (_initialized) {
             save_state();
         }
     }
 
     // Initialize the offline manager
-    bool OfflineManager::initialize()
+    bool Offline_manager::initialize()
     {
-        std::lock_guard<std::mutex> lock(manager_mutex_);
+        std::lock_guard<std::mutex> lock(_manager_mutex);
         
         try {
             // Create storage directory if it doesn't exist
-            std::filesystem::create_directories(storage_path_);
+            std::filesystem::create_directories(_storage_path);
             
             // Load existing operations
             load_operations();
             
-            initialized_ = true;
+            _initialized = true;
             return true;
         } catch (const std::exception& e) {
             std::cerr << "Failed to initialize offline manager: " << e.what() << std::endl;
@@ -49,44 +49,44 @@ namespace offline {
     }
 
     // Check if offline manager is initialized
-    bool OfflineManager::is_initialized() const
+    bool Offline_manager::is_initialized() const
     {
-        return initialized_;
+        return _initialized;
     }
 
     // Enable/disable offline mode
-    void OfflineManager::set_offline_mode(bool enabled)
+    void Offline_manager::set_offline_mode(bool enabled)
     {
-        std::lock_guard<std::mutex> lock(manager_mutex_);
-        offline_mode_ = enabled;
+        std::lock_guard<std::mutex> lock(_manager_mutex);
+        _offline_mode = enabled;
     }
 
     // Check if offline mode is enabled
-    bool OfflineManager::is_offline_mode() const
+    bool Offline_manager::is_offline_mode() const
     {
-        return offline_mode_;
+        return _offline_mode;
     }
 
     // Add an operation to the offline queue
-    bool OfflineManager::queue_operation(const OfflineOperation& operation)
+    bool Offline_manager::queue_operation(const Offline_operation& operation)
     {
-        std::lock_guard<std::mutex> lock(manager_mutex_);
+        std::lock_guard<std::mutex> lock(_manager_mutex);
         
-        if (!initialized_) {
+        if (!_initialized) {
             return false;
         }
         
-        operations_.push_back(operation);
+        _operations.push_back(operation);
         return save_operations();
     }
 
     // Get all pending operations
-    std::vector<OfflineOperation> OfflineManager::get_pending_operations() const
+    std::vector<Offline_operation> Offline_manager::get_pending_operations() const
     {
-        std::lock_guard<std::mutex> lock(manager_mutex_);
+        std::lock_guard<std::mutex> lock(_manager_mutex);
         
-        std::vector<OfflineOperation> pending;
-        for (const auto& op : operations_) {
+        std::vector<Offline_operation> pending;
+        for (const auto& op : _operations) {
             if (!op.completed) {
                 pending.push_back(op);
             }
@@ -96,11 +96,11 @@ namespace offline {
     }
 
     // Mark an operation as completed
-    bool OfflineManager::mark_operation_completed(const std::string& operation_id)
+    bool Offline_manager::mark_operation_completed(const std::string& operation_id)
     {
-        std::lock_guard<std::mutex> lock(manager_mutex_);
+        std::lock_guard<std::mutex> lock(_manager_mutex);
         
-        for (auto& op : operations_) {
+        for (auto& op : _operations) {
             if (op.id == operation_id && !op.completed) {
                 op.completed = true;
                 return save_operations();
@@ -111,17 +111,17 @@ namespace offline {
     }
 
     // Remove a completed operation
-    bool OfflineManager::remove_operation(const std::string& operation_id)
+    bool Offline_manager::remove_operation(const std::string& operation_id)
     {
-        std::lock_guard<std::mutex> lock(manager_mutex_);
+        std::lock_guard<std::mutex> lock(_manager_mutex);
         
-        auto it = std::remove_if(operations_.begin(), operations_.end(),
-            [&operation_id](const OfflineOperation& op) {
+        auto it = std::remove_if(_operations.begin(), _operations.end(),
+            [&operation_id](const Offline_operation& op) {
                 return op.id == operation_id;
             });
         
-        if (it != operations_.end()) {
-            operations_.erase(it, operations_.end());
+        if (it != _operations.end()) {
+            _operations.erase(it, _operations.end());
             return save_operations();
         }
         
@@ -129,17 +129,17 @@ namespace offline {
     }
 
     // Clear all completed operations
-    bool OfflineManager::clear_completed_operations()
+    bool Offline_manager::clear_completed_operations()
     {
-        std::lock_guard<std::mutex> lock(manager_mutex_);
+        std::lock_guard<std::mutex> lock(_manager_mutex);
         
-        auto it = std::remove_if(operations_.begin(), operations_.end(),
-            [](const OfflineOperation& op) {
+        auto it = std::remove_if(_operations.begin(), _operations.end(),
+            [](const Offline_operation& op) {
                 return op.completed;
             });
         
-        if (it != operations_.end()) {
-            operations_.erase(it, operations_.end());
+        if (it != _operations.end()) {
+            _operations.erase(it, _operations.end());
             return save_operations();
         }
         
@@ -147,16 +147,16 @@ namespace offline {
     }
 
     // Process pending operations (when coming back online)
-    size_t OfflineManager::process_pending_operations()
+    size_t Offline_manager::process_pending_operations()
     {
-        std::lock_guard<std::mutex> lock(manager_mutex_);
+        std::lock_guard<std::mutex> lock(_manager_mutex);
         
-        if (!initialized_ || offline_mode_) {
+        if (!_initialized || _offline_mode) {
             return 0;
         }
         
         size_t processed = 0;
-        std::vector<OfflineOperation> pending = get_pending_operations();
+        std::vector<Offline_operation> pending = get_pending_operations();
         
         for (auto& op : pending) {
             if (process_operation(op)) {
@@ -166,7 +166,7 @@ namespace offline {
         }
         
         if (processed > 0) {
-            last_sync_ = std::chrono::system_clock::now();
+            _last_sync = std::chrono::system_clock::now();
             save_state();
         }
         
@@ -174,15 +174,15 @@ namespace offline {
     }
 
     // Get offline manager statistics
-    OfflineManager::Stats OfflineManager::get_stats() const
+    Offline_manager::Stats Offline_manager::get_stats() const
     {
-        std::lock_guard<std::mutex> lock(manager_mutex_);
+        std::lock_guard<std::mutex> lock(_manager_mutex);
         
         Stats stats{};
-        stats.total_operations = operations_.size();
-        stats.last_sync = last_sync_;
+        stats.total_operations = _operations.size();
+        stats.last_sync = _last_sync;
         
-        for (const auto& op : operations_) {
+        for (const auto& op : _operations) {
             if (op.completed) {
                 stats.completed_operations++;
             } else {
@@ -194,25 +194,25 @@ namespace offline {
     }
 
     // Save state to persistent storage
-    bool OfflineManager::save_state()
+    bool Offline_manager::save_state()
     {
         return save_operations();
     }
 
     // Load state from persistent storage
-    bool OfflineManager::load_state()
+    bool Offline_manager::load_state()
     {
         return load_operations();
     }
 
     // Get storage path
-    std::string OfflineManager::get_storage_path() const
+    std::string Offline_manager::get_storage_path() const
     {
-        return storage_path_;
+        return _storage_path;
     }
 
     // Generate unique ID for operations
-    std::string OfflineManager::generate_unique_id() const
+    std::string Offline_manager::generate_unique_id()
     {
         auto now = std::chrono::high_resolution_clock::now();
         auto duration = now.time_since_epoch();
@@ -228,19 +228,19 @@ namespace offline {
     }
 
     // Get operations file path
-    std::filesystem::path OfflineManager::get_operations_file_path() const
+    std::filesystem::path Offline_manager::get_operations_file_path() const
     {
-        return std::filesystem::path(storage_path_) / "operations.json";
+        return std::filesystem::path(_storage_path) / "operations.json";
     }
 
     // Save operations to file
-    bool OfflineManager::save_operations() const
+    bool Offline_manager::save_operations() const
     {
         try {
             nlohmann::json j;
             j["operations"] = nlohmann::json::array();
             
-            for (const auto& op : operations_) {
+            for (const auto& op : _operations) {
                 nlohmann::json op_json;
                 op_json["id"] = op.id;
                 op_json["type"] = static_cast<int>(op.type);
@@ -261,7 +261,7 @@ namespace offline {
             }
             
             j["last_sync"] = std::chrono::duration_cast<std::chrono::milliseconds>(
-                last_sync_.time_since_epoch()).count();
+                _last_sync.time_since_epoch()).count();
             
             std::ofstream file(get_operations_file_path());
             if (file.is_open()) {
@@ -276,7 +276,7 @@ namespace offline {
     }
 
     // Load operations from file
-    bool OfflineManager::load_operations()
+    bool Offline_manager::load_operations()
     {
         try {
             std::ifstream file(get_operations_file_path());
@@ -288,11 +288,11 @@ namespace offline {
             nlohmann::json j;
             file >> j;
             
-            operations_.clear();
+            _operations.clear();
             
             if (j.contains("operations") && j["operations"].is_array()) {
                 for (const auto& op_json : j["operations"]) {
-                    OfflineOperation op;
+                    Offline_operation op;
                     op.id = op_json.value("id", "");
                     op.type = static_cast<OperationType>(op_json.value("type", 0));
                     op.resource_type = op_json.value("resource_type", "");
@@ -305,18 +305,18 @@ namespace offline {
                         std::chrono::milliseconds(timestamp_ms));
                     
                     if (op_json.contains("metadata") && op_json["metadata"].is_object()) {
-                        for (auto& [key, value] : op_json["metadata"].items()) {
+                        for (const auto& [key, value] : op_json["metadata"].items()) {
                             op.metadata[key] = value.get<std::string>();
                         }
                     }
                     
-                    operations_.push_back(op);
+                    _operations.push_back(op);
                 }
             }
             
             if (j.contains("last_sync")) {
                 auto last_sync_ms = j["last_sync"].get<int64_t>();
-                last_sync_ = std::chrono::system_clock::time_point(
+                _last_sync = std::chrono::system_clock::time_point(
                     std::chrono::milliseconds(last_sync_ms));
             }
             
@@ -328,7 +328,7 @@ namespace offline {
     }
 
     // Process a single operation
-    bool OfflineManager::process_operation(const OfflineOperation& operation)
+    bool Offline_manager::process_operation(const Offline_operation& operation)
     {
         // In a real implementation, this would actually perform the API calls
         // For now, we'll just simulate successful processing
@@ -346,7 +346,7 @@ namespace offline {
     }
 
     // Process create operation
-    bool OfflineManager::process_create_operation(const OfflineOperation& operation)
+    bool Offline_manager::process_create_operation(const Offline_operation& operation)
     {
         // This is a placeholder implementation
         // In a real implementation, this would make actual API calls
@@ -356,7 +356,7 @@ namespace offline {
     }
 
     // Process update operation
-    bool OfflineManager::process_update_operation(const OfflineOperation& operation)
+    bool Offline_manager::process_update_operation(const Offline_operation& operation)
     {
         // This is a placeholder implementation
         // In a real implementation, this would make actual API calls
@@ -366,7 +366,7 @@ namespace offline {
     }
 
     // Process delete operation
-    bool OfflineManager::process_delete_operation(const OfflineOperation& operation)
+    bool Offline_manager::process_delete_operation(const Offline_operation& operation)
     {
         // This is a placeholder implementation
         // In a real implementation, this would make actual API calls
@@ -376,7 +376,7 @@ namespace offline {
     }
 
     // Process get operation
-    bool OfflineManager::process_get_operation(const OfflineOperation& operation)
+    bool Offline_manager::process_get_operation(const Offline_operation& operation)
     {
         // This is a placeholder implementation
         // In a real implementation, this would make actual API calls
@@ -386,9 +386,9 @@ namespace offline {
     }
 
     // Global offline manager instance
-    OfflineManager& get_global_manager()
+    Offline_manager& get_global_manager()
     {
-        static OfflineManager instance;
+        static Offline_manager instance;
         return instance;
     }
 
@@ -397,7 +397,7 @@ namespace offline {
     // Queue a card creation operation
     bool queue_card_creation(const Simple_card& card_data, const std::string& parent_id)
     {
-        OfflineOperation op;
+        Offline_operation op;
         op.id = get_global_manager().generate_unique_id();
         op.type = OperationType::CREATE;
         op.resource_type = "card";
@@ -416,7 +416,7 @@ namespace offline {
     // Queue a card update operation
     bool queue_card_update(const std::string& card_id, const Simple_card& card_data)
     {
-        OfflineOperation op;
+        Offline_operation op;
         op.id = get_global_manager().generate_unique_id();
         op.type = OperationType::UPDATE;
         op.resource_type = "card";
@@ -431,7 +431,7 @@ namespace offline {
     // Queue a card deletion operation
     bool queue_card_deletion(const std::string& card_id)
     {
-        OfflineOperation op;
+        Offline_operation op;
         op.id = get_global_manager().generate_unique_id();
         op.type = OperationType::DELETE;
         op.resource_type = "card";
@@ -446,7 +446,7 @@ namespace offline {
     // Queue a card retrieval operation
     bool queue_card_retrieval(const std::string& card_id)
     {
-        OfflineOperation op;
+        Offline_operation op;
         op.id = get_global_manager().generate_unique_id();
         op.type = OperationType::GET;
         op.resource_type = "card";

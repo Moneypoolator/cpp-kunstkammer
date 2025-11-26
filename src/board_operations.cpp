@@ -1,18 +1,18 @@
 #include "board_operations.hpp"
 
-#include <iostream>
+// #include <iostream>
 #include <string>
-#include <utility>
+// #include <utility>
 #include <vector>
 #include <nlohmann/json.hpp>
 
-#include "cache.hpp"
+// #include "cache.hpp"
 #include "card.hpp"
-#include "card_utils.hpp"
+// #include "card_utils.hpp"
 #include "http_client.hpp"
 #include "pagination.hpp"
 #include "error_handler.hpp"
-#include "api_utils.hpp"
+// #include "api_utils.hpp"
 
 namespace kaiten {
 namespace board_operations {
@@ -51,8 +51,8 @@ Paginated_result<Board> get_boards_paginated(
         if (json.is_array()) {
             result.items = json.get<std::vector<Board>>();
         } else {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::API,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::API,
                 status,
                 "Unexpected response format for boards",
                 "Response is not an array",

@@ -1,8 +1,8 @@
 #include "../src/connection_pool.hpp"
 #include <iostream>
-#include <thread>
-#include <vector>
-#include <chrono>
+// #include <thread>
+// #include <vector>
+// #include <chrono>
 
 int main() {
     std::cout << "Connection Pool Example" << std::endl;

@@ -2,7 +2,6 @@
 #define KAITEN_API_UTILS_HPP
 
 #include <string>
-#include "error_handler.hpp"
 
 namespace kaiten {
 namespace api_utils {

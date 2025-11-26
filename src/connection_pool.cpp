@@ -161,7 +161,7 @@ namespace kaiten {
                 conn_info->host == host && conn_info->port == port) {
                 
                 // Test if connection is still alive
-                beast::error_code ec;
+                //beast::error_code ec;
                 beast::get_lowest_layer(*conn_info->stream).socket().non_blocking(false);
                 
                 return conn_info;

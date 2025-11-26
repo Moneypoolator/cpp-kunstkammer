@@ -8,7 +8,7 @@ namespace kaiten {
 namespace error_handler {
 
     // Error categories
-    enum class ErrorCategory {
+    enum class Error_category {
         NETWORK,
         AUTHENTICATION,
         API,
@@ -20,8 +20,8 @@ namespace error_handler {
     };
 
     // Detailed error information
-    struct ErrorInfo {
-        ErrorCategory category;
+    struct Error_info {
+        Error_category category;
         int http_status;
         std::string message;
         std::string details;
@@ -30,28 +30,28 @@ namespace error_handler {
     };
 
     // Enhanced error logging with context
-    void log_error(const ErrorInfo& error, const std::string& context = "");
+    void log_error(const Error_info& error, const std::string& context = "");
     
     // Generate user-friendly error messages
-    std::string format_error_message(const ErrorInfo& error);
+    std::string format_error_message(const Error_info& error);
     
     // Generate recovery suggestions based on error type
-    std::string generate_recovery_suggestion(const ErrorInfo& error);
+    std::string generate_recovery_suggestion(const Error_info& error);
     
     // Parse API error responses
-    ErrorInfo parse_api_error(int status, const std::string& response, const std::string& action);
+    Error_info parse_api_error(int status, const std::string& response, const std::string& action);
     
     // Handle common HTTP errors
-    ErrorInfo handle_http_error(int status, const std::string& response, const std::string& action);
+    Error_info handle_http_error(int status, const std::string& response, const std::string& action);
     
     // Handle JSON parsing errors
-    ErrorInfo handle_parsing_error(const std::exception& e, const std::string& context, const std::string& data = "");
+    Error_info handle_parsing_error(const std::exception& e, const std::string& context, const std::string& data = "");
     
     // Handle network errors
-    ErrorInfo handle_network_error(const std::exception& e, const std::string& operation);
+    Error_info handle_network_error(const std::exception& e, const std::string& operation);
     
     // Handle configuration errors
-    ErrorInfo handle_config_error(const std::string& message, const std::string& file_path = "");
+    Error_info handle_config_error(const std::string& message, const std::string& file_path = "");
 
 } // namespace error_handler
 } // namespace kaiten

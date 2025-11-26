@@ -4,12 +4,12 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <optional>
+// #include <optional>
 #include <filesystem>
 #include <mutex>
 #include <chrono>
 #include "card.hpp"
-#include "cache.hpp"
+// #include "cache.hpp"
 
 namespace kaiten {
 namespace offline {
@@ -23,7 +23,7 @@ namespace offline {
     };
 
     // Offline operation structure
-    struct OfflineOperation {
+    struct Offline_operation {
         std::string id;                    // Unique operation ID
         OperationType type;               // Type of operation
         std::string resource_type;         // Type of resource (card, user, etc.)
@@ -35,13 +35,13 @@ namespace offline {
     };
 
     // Offline manager class
-    class OfflineManager {
+    class Offline_manager {
     public:
         // Constructor
-        explicit OfflineManager(const std::string& storage_path = ".kaiten_offline");
+        explicit Offline_manager(const std::string& storage_path = ".kaiten_offline");
         
         // Destructor
-        ~OfflineManager();
+        ~Offline_manager();
         
         // Initialize the offline manager
         bool initialize();
@@ -56,10 +56,10 @@ namespace offline {
         bool is_offline_mode() const;
         
         // Add an operation to the offline queue
-        bool queue_operation(const OfflineOperation& operation);
+        bool queue_operation(const Offline_operation& operation);
         
         // Get all pending operations
-        std::vector<OfflineOperation> get_pending_operations() const;
+        std::vector<Offline_operation> get_pending_operations() const;
         
         // Mark an operation as completed
         bool mark_operation_completed(const std::string& operation_id);
@@ -92,15 +92,15 @@ namespace offline {
         std::string get_storage_path() const;
         
         // Generate unique ID for operations
-        std::string generate_unique_id() const;
+        static std::string generate_unique_id();
         
     private:
-        std::string storage_path_;
-        std::vector<OfflineOperation> operations_;
-        bool initialized_;
-        bool offline_mode_;
-        mutable std::mutex manager_mutex_;
-        std::chrono::system_clock::time_point last_sync_;
+        std::string _storage_path;
+        std::vector<Offline_operation> _operations;
+        bool _initialized;
+        bool _offline_mode;
+        mutable std::mutex _manager_mutex;
+        std::chrono::system_clock::time_point _last_sync;
         
         // Get operations file path
         std::filesystem::path get_operations_file_path() const;
@@ -112,23 +112,23 @@ namespace offline {
         bool load_operations();
         
         // Process a single operation
-        bool process_operation(const OfflineOperation& operation);
+        bool process_operation(const Offline_operation& operation);
         
         // Process create operation
-        bool process_create_operation(const OfflineOperation& operation);
+        bool process_create_operation(const Offline_operation& operation);
         
         // Process update operation
-        bool process_update_operation(const OfflineOperation& operation);
+        bool process_update_operation(const Offline_operation& operation);
         
         // Process delete operation
-        bool process_delete_operation(const OfflineOperation& operation);
+        bool process_delete_operation(const Offline_operation& operation);
         
         // Process get operation
-        bool process_get_operation(const OfflineOperation& operation);
+        bool process_get_operation(const Offline_operation& operation);
     };
 
     // Global offline manager instance
-    OfflineManager& get_global_manager();
+    Offline_manager& get_global_manager();
 
     // Helper functions for common operations
     

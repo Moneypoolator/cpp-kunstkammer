@@ -71,8 +71,8 @@ std::pair<int, Card> create_card(
             kaiten::error_handler::log_error(error, "create_card");
             return { status, Card {} };
         } catch (...) {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::PARSING,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::PARSING,
                 status,
                 "Create card: success status but failed to parse response",
                 "Unknown parsing error",
@@ -119,8 +119,8 @@ std::pair<int, Card> update_card(
             kaiten::error_handler::log_error(error, "update_card");
             return { status, Card {} };
         } catch (...) {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::PARSING,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::PARSING,
                 status,
                 "Update card: success status but failed to parse response",
                 "Unknown parsing error",
@@ -187,8 +187,8 @@ std::pair<int, Card> get_card(
             kaiten::error_handler::log_error(error, "get_card");
             return { status, Card {} };
         } catch (...) {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::PARSING,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::PARSING,
                 status,
                 "Failed to parse card JSON",
                 "Unknown parsing error",
@@ -324,8 +324,8 @@ Paginated_result<Card> get_cards_paginated(
         if (json.is_array()) {
             result.items = json.get<std::vector<Card>>();
         } else {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::API,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::API,
                 status,
                 "Unexpected response format for cards",
                 "Response is not an array",
@@ -469,8 +469,8 @@ std::pair<int, std::vector<Card>> get_all_cards(
             auto error = kaiten::error_handler::handle_network_error(e, "fetching page");
             kaiten::error_handler::log_error(error, "get_all_cards");
         } catch (...) {
-            auto error = kaiten::error_handler::ErrorInfo{
-                kaiten::error_handler::ErrorCategory::NETWORK,
+            auto error = kaiten::error_handler::Error_info{
+                kaiten::error_handler::Error_category::NETWORK,
                 0,
                 "Unknown error fetching page",
                 "Unknown error",

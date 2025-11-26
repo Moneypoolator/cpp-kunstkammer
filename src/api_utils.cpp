@@ -1,4 +1,5 @@
 #include "api_utils.hpp"
+#include "error_handler.hpp"
 
 namespace kaiten {
 namespace api_utils {
