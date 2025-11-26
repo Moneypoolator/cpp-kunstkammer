@@ -156,6 +156,13 @@ if [ "$CLEAN_BUILD" = true ]; then
     rm -rf "$BUILD_DIR"/*
 fi
 
+# Always clean CMake cache to avoid generator conflicts
+if [ -f "CMakeCache.txt" ]; then
+    echo "🗑️  Удаление кэша CMake..."
+    rm -f CMakeCache.txt
+    rm -rf CMakeFiles
+fi
+
 # Конфигурация
 echo "⚙️  Конфигурация сборки: $BUILD_TYPE"
 cd "$BUILD_DIR"

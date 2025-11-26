@@ -70,6 +70,7 @@ set(SOURCES
     src/board_operations.cpp
     src/error_handler.cpp
     src/offline_manager.cpp
+    src/connection_pool.cpp
 )
 
 # Исходные файлы для библиотеки
@@ -85,6 +86,7 @@ set(LIB_SOURCES
     src/board_operations.cpp
     src/error_handler.cpp
     src/offline_manager.cpp
+    src/connection_pool.cpp
 )
 
 # Создание библиотеки для общего кода
@@ -184,4 +186,34 @@ target_link_libraries(offline_manager_test PRIVATE
 
 # Добавление теста
 add_test(NAME offline_manager_test COMMAND offline_manager_test)
+
+# Создание теста для connection pool
+add_executable(connection_pool_test test/connection_pool_test.cpp)
+target_include_directories(connection_pool_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${Boost_INCLUDE_DIRS}
+)
+target_link_libraries(connection_pool_test PRIVATE
+    GTest::gtest_main
+    kunstkammer_lib
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)
+
+# Добавление теста
+add_test(NAME connection_pool_test COMMAND connection_pool_test)
+
+# Создание примера для connection pool
+add_executable(connection_pool_example examples/connection_pool_example.cpp)
+target_include_directories(connection_pool_example PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${Boost_INCLUDE_DIRS}
+)
+target_link_libraries(connection_pool_example PRIVATE
+    kunstkammer_lib
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)
 

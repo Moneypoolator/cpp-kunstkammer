@@ -12,8 +12,10 @@
 //#include <iostream>
 #include <string>
 #include <utility>
+#include <memory>
 
 #include "rate_limiter.hpp"
+#include "connection_pool.hpp"
 
 namespace net = boost::asio;
 namespace ssl = net::ssl;
@@ -21,7 +23,7 @@ using tcp = net::ip::tcp;
 
 class Http_client {
 public:
-    Http_client(net::io_context& ioc, ssl::context& ctx, 
+    Http_client(net::io_context& ioc, ssl::context& ctx,
         kaiten::Rate_limiter* rate_limiter = &kaiten::global_rate_limiter);
 
     // Returns pair<status_code, response_body>
@@ -41,6 +43,11 @@ public:
         }
     }
 
+    // Get connection pool statistics
+    kaiten::Connection_pool::Stats get_pool_stats() const {
+        return _connection_pool->get_stats();
+    }
+
 private:
     void apply_rate_limiting() {
         if (_rate_limiter != nullptr) {
@@ -51,6 +58,7 @@ private:
     net::io_context& _ioc;
     ssl::context& _ctx;
     kaiten::Rate_limiter* _rate_limiter;
+    std::shared_ptr<kaiten::Connection_pool> _connection_pool;
 };
 
-#endif // HTTP_CLIENT_HPP 
+#endif // HTTP_CLIENT_HPP
