@@ -398,7 +398,7 @@ namespace offline {
     bool queue_card_creation(const Simple_card& card_data, const std::string& parent_id)
     {
         Offline_operation op;
-        op.id = get_global_manager().generate_unique_id();
+        op.id = Offline_manager::generate_unique_id();
         op.type = OperationType::CREATE;
         op.resource_type = "card";
         op.resource_id = ""; // Will be assigned by the server
@@ -417,7 +417,7 @@ namespace offline {
     bool queue_card_update(const std::string& card_id, const Simple_card& card_data)
     {
         Offline_operation op;
-        op.id = get_global_manager().generate_unique_id();
+        op.id = Offline_manager::generate_unique_id();
         op.type = OperationType::UPDATE;
         op.resource_type = "card";
         op.resource_id = card_id;
@@ -432,7 +432,7 @@ namespace offline {
     bool queue_card_deletion(const std::string& card_id)
     {
         Offline_operation op;
-        op.id = get_global_manager().generate_unique_id();
+        op.id = Offline_manager::generate_unique_id();
         op.type = OperationType::DELETE;
         op.resource_type = "card";
         op.resource_id = card_id;
@@ -447,7 +447,7 @@ namespace offline {
     bool queue_card_retrieval(const std::string& card_id)
     {
         Offline_operation op;
-        op.id = get_global_manager().generate_unique_id();
+        op.id = Offline_manager::generate_unique_id();
         op.type = OperationType::GET;
         op.resource_type = "card";
         op.resource_id = card_id;
