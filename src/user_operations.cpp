@@ -4,7 +4,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <nlohmann/json.hpp>
 
 #include "cache.hpp"
 #include "card.hpp"
@@ -12,18 +11,10 @@
 #include "http_client.hpp"
 #include "pagination.hpp"
 #include "error_handler.hpp"
+#include "api_utils.hpp"
 
 namespace kaiten {
 namespace user_operations {
-
-namespace {
-
-void log_api_error(const char* action, int status, const std::string& response) {
-    auto error = kaiten::error_handler::parse_api_error(status, response, action);
-    kaiten::error_handler::log_error(error);
-}
-
-} // namespace
 
 // Gets a specific user by ID
 std::pair<int, User> get_user(
@@ -39,7 +30,7 @@ std::pair<int, User> get_user(
     auto cached = Api_cache::user_cache().get(user_id);
     if (cached.has_value()) {
         std::cout << "Cache HIT for user ID: " << user_id << std::endl;
-        return { 200, cached.value() };
+        return std::make_pair(200, cached.value());
     }
 
     std::cout << "Cache MISS for user ID: " << user_id << std::endl;
@@ -55,11 +46,11 @@ std::pair<int, User> get_user(
             // Сохраняем в кэш
             Api_cache::user_cache().put(user.id, user);
 
-            return { status, user };
+            return std::make_pair(status, user);
         } catch (const std::exception& e) {
             auto error = kaiten::error_handler::handle_parsing_error(e, "user JSON", response);
             kaiten::error_handler::log_error(error, "get_user");
-            return { status, User {} };
+            return std::make_pair(status, User {});
         } catch (...) {
             auto error = kaiten::error_handler::ErrorInfo{
                 kaiten::error_handler::ErrorCategory::PARSING,
@@ -70,13 +61,13 @@ std::pair<int, User> get_user(
                 response
             };
             kaiten::error_handler::log_error(error, "get_user");
-            return { status, User {} };
+            return std::make_pair(status, User {});
         }
     }
 
-    log_api_error("Get user failed", status, response);
+    kaiten::api_utils::log_api_error("Get user failed", status, response);
 
-    return { status, User {} };
+    return std::make_pair(status, User {});
 }
 
 // Gets the current authenticated user
@@ -94,11 +85,11 @@ std::pair<int, User> get_current_user(
         try {
             auto j = nlohmann::json::parse(response);
             User user = j.get<User>();
-            return { status, user };
+            return std::make_pair(status, user);
         } catch (const std::exception& e) {
             auto error = kaiten::error_handler::handle_parsing_error(e, "current user JSON", response);
             kaiten::error_handler::log_error(error, "get_current_user");
-            return { status, User {} };
+            return std::make_pair(status, User {});
         } catch (...) {
             auto error = kaiten::error_handler::ErrorInfo{
                 kaiten::error_handler::ErrorCategory::PARSING,
@@ -109,13 +100,13 @@ std::pair<int, User> get_current_user(
                 response
             };
             kaiten::error_handler::log_error(error, "get_current_user");
-            return { status, User {} };
+            return std::make_pair(status, User {});
         }
     }
 
-    log_api_error("Get current user failed", status, response);
+    kaiten::api_utils::log_api_error("Get current user failed", status, response);
 
-    return { status, User {} };
+    return std::make_pair(status, User {});
 }
 
 // Gets users by email (filter). Returns array; caller can decide how to handle multiple matches
@@ -139,11 +130,11 @@ std::pair<int, std::vector<User>> get_users_by_email(
             } else if (j.is_object() && j.contains("users") && j["users"].is_array()) {
                 users = j["users"].get<std::vector<User>>();
             }
-            return { status, users };
+            return std::make_pair(status, users);
         } catch (const std::exception& e) {
             auto error = kaiten::error_handler::handle_parsing_error(e, "users-by-email JSON", response);
             kaiten::error_handler::log_error(error, "get_users_by_email");
-            return { status, {} };
+            return std::make_pair(status, std::vector<User>{});
         } catch (...) {
             auto error = kaiten::error_handler::ErrorInfo{
                 kaiten::error_handler::ErrorCategory::PARSING,
@@ -154,13 +145,13 @@ std::pair<int, std::vector<User>> get_users_by_email(
                 response
             };
             kaiten::error_handler::log_error(error, "get_users_by_email");
-            return { status, {} };
+            return std::make_pair(status, std::vector<User>{});
         }
     }
 
-    log_api_error("Get users by email failed", status, response);
+    kaiten::api_utils::log_api_error("Get users by email failed", status, response);
 
-    return { status, {} };
+    return std::make_pair(status, std::vector<User>{});
 }
 
 // Improved paginated users with correct pagination
@@ -247,7 +238,7 @@ std::pair<int, std::vector<User>> get_all_users(
     
     if (first_page_result.items.empty()) {
         std::cout << "No users found." << std::endl;
-        return {last_status, {}};
+        return std::make_pair(last_status, std::vector<User>{});
     }
     
     // Store first page results
@@ -288,7 +279,7 @@ std::pair<int, std::vector<User>> get_all_users(
     
     std::cout << "Finished fetching users. Total: " << all_users.size() << std::endl;
     
-    return {last_status, all_users};
+    return std::make_pair(last_status, all_users);
 }
 
 } // namespace user_operations

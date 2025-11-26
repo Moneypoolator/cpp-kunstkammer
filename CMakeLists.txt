@@ -69,6 +69,7 @@ set(SOURCES
     src/user_operations.cpp
     src/board_operations.cpp
     src/error_handler.cpp
+    src/api_utils.cpp
     src/offline_manager.cpp
     src/connection_pool.cpp
 )
@@ -85,6 +86,7 @@ set(LIB_SOURCES
     src/user_operations.cpp
     src/board_operations.cpp
     src/error_handler.cpp
+    src/api_utils.cpp
     src/offline_manager.cpp
     src/connection_pool.cpp
 )

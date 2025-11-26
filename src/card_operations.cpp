@@ -13,18 +13,11 @@
 #include "http_client.hpp"
 #include "pagination.hpp"
 #include "error_handler.hpp"
+#include "api_utils.hpp"
 
 namespace kaiten {
 namespace card_operations {
 
-namespace {
-
-void log_api_error(const char* action, int status, const std::string& response) {
-    auto error = kaiten::error_handler::parse_api_error(status, response, action);
-    kaiten::error_handler::log_error(error);
-}
-
-} // namespace
 
 // Creates a new card using the Kaiten API.
 // Required fields: title, column_id, lane_id.
@@ -91,7 +84,7 @@ std::pair<int, Card> create_card(
         }
     }
 
-    log_api_error("Create card failed", status, response);
+    kaiten::api_utils::log_api_error("Create card failed", status, response);
 
     return { status, Card {} };
 }
@@ -139,7 +132,7 @@ std::pair<int, Card> update_card(
         }
     }
 
-    log_api_error("Update card failed", status, response);
+    kaiten::api_utils::log_api_error("Update card failed", status, response);
 
     return { status, Card {} };
 }
@@ -207,7 +200,7 @@ std::pair<int, Card> get_card(
         }
     }
 
-    log_api_error("Get card failed", status, response);
+    kaiten::api_utils::log_api_error("Get card failed", status, response);
 
     return { status, Card {} };
 }
@@ -233,7 +226,7 @@ std::pair<int, bool> add_child_card(
         return { status, true };
     }
 
-    log_api_error("Add child failed", status, response);
+    kaiten::api_utils::log_api_error("Add child failed", status, response);
 
     return { status, false };
 }
@@ -259,7 +252,7 @@ std::pair<int, bool> add_tag_to_card(
         return { status, true };
     }
 
-    log_api_error("Add tag failed", status, response);
+    kaiten::api_utils::log_api_error("Add tag failed", status, response);
 
     return { status, false };
 }
