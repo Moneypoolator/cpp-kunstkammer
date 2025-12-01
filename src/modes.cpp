@@ -12,6 +12,7 @@
 #include "card_utils.hpp"
 #include "kaiten.hpp"
 #include "pagination.hpp"
+#include "rate_limiter.hpp"
 // #include "card_operations.hpp"
 // #include "user_operations.hpp"
 // #include "board_operations.hpp"
@@ -79,7 +80,7 @@ bool paginate_with_metadata(
         pages_processed++;
 
         // Небольшая задержка между запросами
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        kaiten::global_rate_limiter.wait_if_needed();
     }
 
     std::cout << "Completed: " << total_items << " total items" << std::endl;
@@ -133,7 +134,7 @@ bool paginate_with_offset_limit(
         requests_processed++;
 
         // Небольшая задержка между запросами
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        kaiten::global_rate_limiter.wait_if_needed();
     }
 
     std::cout << "Completed: " << total_items << " total items" << std::endl;
@@ -241,7 +242,7 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
         current_offset += pagination_params.limit;
         
         // Небольшая задержка между запросами
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        kaiten::global_rate_limiter.wait_if_needed();
     }
     
     if (all_cards.empty()) {
