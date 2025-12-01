@@ -73,7 +73,17 @@ Paginated_result<Card> get_cards_paginated(
 std::pair<int, std::vector<Card>> get_all_cards(
     Http_client& client,
     const std::string& host,
-    const std::string& port, 
+    const std::string& port,
+    const std::string& api_path,
+    const std::string& token,
+    const Card_filter_params& filters = {},
+    int page_size = 100);
+
+// Batch-based implementation of get_all_cards using limited threading
+std::pair<int, std::vector<Card>> get_all_cards_batched(
+    Http_client& client,
+    const std::string& host,
+    const std::string& port,
     const std::string& api_path,
     const std::string& token,
     const Card_filter_params& filters = {},

@@ -190,131 +190,68 @@ kaiten::Paginated_result<Card> fetch_page_result(
 }
 } // namespace
 
-// Реализация handle_cards_list с многопоточной пагинацией offset/limit
+// Реализация handle_cards_list с использованием нового batched подхода
 int handle_cards_list(Http_client& client, const std::string& host, const std::string& port,
     const std::string& api_path, const std::string& token)
 {
-    kaiten::Pagination_params params;
-    params.limit = 50; // Уменьшаем лимит для более плавной загрузки
-    params.sort_by = "updated";
-    params.sort_order = "desc";
-
+    kaiten::Card_filter_params no_filters;
+    kaiten::Pagination_params pagination_params;
+    pagination_params.sort_by = "updated";
+    pagination_params.sort_order = "desc";
+    pagination_params.limit = 50; // Используем лимит 50 для более плавной загрузки
+    
+    std::cout << "Fetching all cards using batched Kaiten API pagination with sorting..." << std::endl;
+    
+    // Используем новый batched подход для получения всех карточек с сортировкой
     std::vector<Card> all_cards;
-    std::mutex cards_mutex; // Для потокобезопасного доступа к all_cards
-
-    // Определяем количество доступных потоков
-    // Определяем количество доступных потоков с ограничением
-    unsigned int max_threads = std::thread::hardware_concurrency();
-    if (max_threads == 0) {
-        max_threads = 4; // Fallback если hardware_concurrency() вернул 0
-    }
-    // Ограничиваем количество потоков для экономии ресурсов
-    max_threads = std::min(max_threads, 6U); // Максимум 6 потоков
-    std::cout << "Using " << max_threads << " threads for parallel fetching" << std::endl;
-
-    std::cout << "Fetching all cards using multithreaded Kaiten API pagination (offset/limit)..." << std::endl;
-
-    // Получаем первую страницу, чтобы определить, есть ли еще страницы
-    params.offset = 0;
-    std::cout << "Fetching first page (offset 0, limit " << params.limit << ")..." << std::endl;
-
-    auto first_page_result = kaiten::get_cards_paginated(client, host, port, api_path, token, params);
-
-    if (first_page_result.items.empty()) {
-        std::cout << "No cards found." << std::endl;
-        return 1;
-    }
-
-    // Добавляем первую страницу в общий список
-    all_cards.insert(all_cards.end(),
-        first_page_result.items.begin(),
-        first_page_result.items.end());
-
-    std::cout << "Page 0 (offset 0): " << first_page_result.items.size()
-              << " cards, total: " << all_cards.size() << std::endl;
-
-    // Если есть еще страницы, начинаем многопоточную загрузку
-    if (first_page_result.has_more) {
-        int current_offset = params.limit;
-        bool has_more_pages = true;
-
-        while (has_more_pages) {
-            // Создаем батч запросов на основе количества доступных потоков
-            std::vector<std::future<kaiten::Paginated_result<Card>>> futures;
-            std::vector<int> batch_offsets;
-
-            // Генерируем запросы для текущего батча (на основе количества потоков)
-            for (unsigned int i = 0; i < max_threads; ++i) {
-                kaiten::Pagination_params page_params = params;
-                page_params.offset = current_offset;
-
-                batch_offsets.push_back(current_offset);
-                futures.push_back(
-                    std::async(std::launch::async, fetch_page_result,
-                              std::ref(client), host, port, api_path, token, page_params)
-                );
-
-                current_offset += params.limit;
-            }
-
-            std::cout << "Processing batch of " << futures.size() << " pages (offsets starting from "
-                      << batch_offsets[0] << ")..." << std::endl;
-
-            // Ожидаем завершения всех запросов в батче и обрабатываем результаты
-            has_more_pages = false;
-            for (size_t i = 0; i < futures.size(); ++i) {
-                try {
-                    auto page_result = futures[i].get();
-
-                    if (page_result.items.empty()) {
-                        std::cout << "Page at offset " << batch_offsets[i] << ": empty, reached end" << std::endl;
-                        // Если нашли пустую страницу, прекращаем дальнейшую обработку
-                        has_more_pages = false;
-                        break;
-                    }
-
-                    // Потокобезопасное добавление карточек
-                    {
-                        std::lock_guard<std::mutex> lock(cards_mutex);
-                        all_cards.insert(all_cards.end(),
-                            page_result.items.begin(),
-                            page_result.items.end());
-                    }
-
-                    std::cout << "Page at offset " << batch_offsets[i] << ": " << page_result.items.size()
-                              << " cards, total: " << all_cards.size() << std::endl;
-
-                    // Если хотя бы одна страница указывает, что есть еще страницы, продолжаем
-                    if (page_result.has_more) {
-                        has_more_pages = true;
-                    }
-                } catch (const std::exception& e) {
-                    std::cerr << "Error fetching page at offset " << batch_offsets[i] << ": " << e.what() << std::endl;
-                }
-            }
-
-            // Если в батче не было страниц с has_more=true, прекращаем загрузку
-            if (!has_more_pages) {
-                std::cout << "No more pages available, stopping." << std::endl;
-                break;
-            }
-        }
-    }
-
-    std::cout << "\n=== All Cards Results ===" << std::endl;
-    std::cout << "Total cards fetched: " << all_cards.size() << std::endl;
-
+    int current_offset = 0;
+    bool has_more = true;
+    int total_fetched = 0;
+    
     // Выводим статистику по типам и состояниям
     std::map<std::string, int> type_stats;
     std::map<std::string, int> state_stats;
     std::map<std::string, int> board_stats;
-
-    for (const auto& card : all_cards) {
-        type_stats[card.type.empty() ? "Unknown" : card.type]++;
-        state_stats[card.state.empty() ? "Unknown" : card.state]++;
-        board_stats[card.board.title.empty() ? "Unknown" : card.board.title]++;
+    
+    while (has_more) {
+        pagination_params.offset = current_offset;
+        
+        auto page_result = kaiten::get_cards_paginated(client, host, port, api_path, token,
+            pagination_params, no_filters);
+        
+        if (page_result.items.empty()) {
+            break;
+        }
+        
+        // Добавляем карточки в общий список
+        all_cards.insert(all_cards.end(), page_result.items.begin(), page_result.items.end());
+        
+        // Обновляем статистику
+        for (const auto& card : page_result.items) {
+            type_stats[card.type.empty() ? "Unknown" : card.type]++;
+            state_stats[card.state.empty() ? "Unknown" : card.state]++;
+            board_stats[card.board.title.empty() ? "Unknown" : card.board.title]++;
+        }
+        
+        total_fetched += page_result.items.size();
+        std::cout << "Fetched " << page_result.items.size() << " cards (offset " << current_offset << ")" << std::endl;
+        
+        // Проверяем, есть ли еще страницы
+        has_more = page_result.has_more;
+        current_offset += pagination_params.limit;
+        
+        // Небольшая задержка между запросами
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-
+    
+    if (all_cards.empty()) {
+        std::cout << "No cards found." << std::endl;
+        return 1;
+    }
+    
+    std::cout << "\n=== All Cards Results ===" << std::endl;
+    std::cout << "Total cards fetched: " << all_cards.size() << std::endl;
+    
     // Выводим карточки
     for (const auto& card : all_cards) {
         std::cout << "#" << card.number << " [" << card.id << "] "
@@ -324,26 +261,26 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
                   << ", board=" << card.board.title
                   << ", updated: " << card.updated.toIso8601() << ")" << std::endl;
     }
-
+    
     // Выводим статистику
     std::cout << "\n=== Statistics ===" << std::endl;
-
+    
     std::cout << "By type:" << std::endl;
     for (const auto& [type, count] : type_stats) {
         std::cout << "  " << type << ": " << count << std::endl;
     }
-
+    
     std::cout << "By state:" << std::endl;
     for (const auto& [state, count] : state_stats) {
         std::cout << "  " << state << ": " << count << std::endl;
     }
-
+    
     std::cout << "By board:" << std::endl;
     for (const auto& [board, count] : board_stats) {
         std::cout << "  " << board << ": " << count << std::endl;
     }
-
-    return all_cards.empty() ? 1 : 0;
+    
+    return 0;
 }
 
 // Вспомогательные функции для обработки бэклога
