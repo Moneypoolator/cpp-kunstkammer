@@ -4,9 +4,9 @@
 #include <iostream>
 #include <optional>
 #include <string>
-#include <thread>
-#include <future>
-#include <mutex>
+// #include <thread>
+// #include <future>
+// #include <mutex>
 
 #include "card.hpp"
 #include "card_utils.hpp"
@@ -178,18 +178,18 @@ int handle_get_card(Http_client& client, const std::string& host, const std::str
 }
 
 // Вспомогательная функция для получения одной страницы карточек (используется в потоках)
-namespace {
-kaiten::Paginated_result<Card> fetch_page_result(
-    Http_client& client,
-    const std::string& host,
-    const std::string& port,
-    const std::string& api_path,
-    const std::string& token,
-    const kaiten::Pagination_params& params)
-{
-    return kaiten::get_cards_paginated(client, host, port, api_path, token, params);
-}
-} // namespace
+// namespace {
+// kaiten::Paginated_result<Card> fetch_page_result(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& port,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const kaiten::Pagination_params& params)
+// {
+//     return kaiten::get_cards_paginated(client, host, port, api_path, token, params);
+// }
+// } // namespace
 
 // Реализация handle_cards_list с использованием нового batched подхода
 int handle_cards_list(Http_client& client, const std::string& host, const std::string& port,
@@ -207,7 +207,7 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
     std::vector<Card> all_cards;
     int current_offset = 0;
     bool has_more = true;
-    int total_fetched = 0;
+    size_t total_fetched = 0;
     
     // Выводим статистику по типам и состояниям
     std::map<std::string, int> type_stats;

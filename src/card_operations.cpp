@@ -357,30 +357,30 @@ Paginated_result<Card> get_cards_paginated(
 }
 
 // Helper function to fetch a single page (used in map phase)
-namespace {
-std::vector<Card> fetch_page(
-    Http_client& client,
-    const std::string& host,
-    const std::string& port,
-    const std::string& api_path,
-    const std::string& token,
-    const Card_filter_params& filters,
-    int offset,
-    int limit)
-{
-    Pagination_params pagination;
-    pagination.offset = offset;
-    pagination.limit = limit;
+// namespace {
+// std::vector<Card> fetch_page(
+//     Http_client& client,
+//     const std::string& host,
+//     const std::string& port,
+//     const std::string& api_path,
+//     const std::string& token,
+//     const Card_filter_params& filters,
+//     int offset,
+//     int limit)
+// {
+//     Pagination_params pagination;
+//     pagination.offset = offset;
+//     pagination.limit = limit;
     
-    auto page_result = get_cards_paginated(client, host, port, api_path, token, 
-                                          pagination, filters);
+//     auto page_result = get_cards_paginated(client, host, port, api_path, token, 
+//                                           pagination, filters);
     
-    std::cout << "Thread: Fetched page at offset " << offset 
-              << ": " << page_result.items.size() << " cards" << std::endl;
+//     std::cout << "Thread: Fetched page at offset " << offset 
+//               << ": " << page_result.items.size() << " cards" << std::endl;
     
-    return page_result.items;
-}
-} // namespace
+//     return page_result.items;
+// }
+// } // namespace
 
 // Get all cards with automatic pagination using offset/limit
 // This now uses the batched implementation for better resource management
