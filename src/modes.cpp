@@ -365,7 +365,8 @@ std::int64_t find_responsible_user_id(
         return 0;
     }
 
-    auto [status, users] = kaiten::get_users_by_email(client, host, port, api_path, token, responsible_email);
+    auto [status, users] = kaiten::get_all_users(client, host, port,api_path, token);
+    //auto [status, users] = kaiten::get_users_by_email(client, host, port, api_path, token, responsible_email);
     if (status == 200 && !users.empty()) {
         for (const auto& user : users) {
             if (user.email == responsible_email && user.id > 0) {
