@@ -158,9 +158,9 @@ int handle_get_card(Http_client& client, const std::string& host, const std::str
         std::cout << "Title: " << card.title << std::endl;
         std::cout << "Type: " << card.type << std::endl;
         std::cout << "State: " << card.state << std::endl;
-        std::cout << "Board: " << card.board.title << std::endl;
-        std::cout << "Column: " << card.column.title << std::endl;
-        std::cout << "Lane: " << card.lane.title << std::endl;
+        std::cout << "Board: " << card.board.title << "; id=" << card.board.id << "; external_id= " << (card.board.external_id.has_value() ? card.board.external_id.value() : "N/A;") << std::endl;
+        std::cout << "Column: " << card.column.title << "; id=" << card.column.id << "; external_id= " << (card.column.column_id.has_value() ? card.column.column_id.value() : 0 ) << "; board_id=" << card.column.board_id << ";" << std::endl;
+        std::cout << "Lane: " << card.lane.title << "; id=" << card.lane.id << "; external_id= " << (card.lane.external_id.has_value() ? card.lane.external_id.value() : "N/A" ) << "; card_type_id=" << (card.lane.default_card_type_id.has_value() ? card.lane.default_card_type_id.value(): 0 ) << "; board_id=" << card.lane.board_id << ";" << std::endl;
         std::cout << "Owner: " << card.owner.full_name << std::endl;
 
         if (!card.properties.empty()) {
