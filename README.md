@@ -19,13 +19,13 @@ C++ клиент для работы с API системы управления 
 #### Ubuntu/Debian
 ```bash
 sudo apt update
-sudo apt install build-essential cmake libboost-system-dev libboost-program-options-dev libssl-dev make g++
+sudo apt install build-essential cmake libgtest-dev libboost-system-dev libboost-program-options-dev libssl-dev make g++
 ```
 
 #### CentOS/RHEL
 
 ```bash
-sudo yum install gcc-c++ cmake make boost-devel openssl-devel
+sudo yum install gcc-c++ cmake make boost-devel openssl-devel gtest-devel
 ```
 
 #### macOS
@@ -34,7 +34,7 @@ sudo yum install gcc-c++ cmake make boost-devel openssl-devel
 # Установка Xcode Command Line Tools
 xcode-select --install
 
-brew install cmake make boost openssl
+brew install cmake make boost openssl googletest
 ```
 
 #### MS Windows
@@ -67,7 +67,7 @@ scoop install cmake
 ```bash
 
 # install Boost.ProgramOptions, Boost.System, Boost.Beast (header-only) and OpenSSL for x64
-.\vcpkg.exe install boost-program-options boost-system boost-beast openssl:x64-windows
+.\vcpkg.exe install boost-program-options boost-system boost-beast openssl:x64-windows gtest:x64-windows
 
 # integrate VS and CMake can find packages automatically
 .\vcpkg.exe integrate install
