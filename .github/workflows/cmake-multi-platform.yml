@@ -71,7 +71,7 @@ jobs:
 
     - name: Install Ninja on Linux
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y ninja-build libboost-system-dev libboost-program-options-dev libssl-dev
+      run: sudo apt-get update && sudo apt-get install -y ninja-build libgtest-dev libboost-system-dev libboost-program-options-dev libssl-dev
 
     - name: Install Ninja on macOS
       if: runner.os == 'macOS'
