@@ -628,7 +628,7 @@ std::pair<int, int> process_backlog_entry(
     // Получаем информацию о родительской карточке
     std::string sprint_number;
     std::string product_code = "CAD";
-    std::string work_code = "XXX.XX";
+    std::string work_code = ""; //"XXX.XX";
 
     std::int64_t parent_card_id = 0;
     if (!parent_id_str.empty()) {
@@ -1051,7 +1051,7 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     bool update_title = false;
     std::string sprint_number;
     std::string product_code = "CAD";
-    std::string work_code = "XXX.XX";
+    std::string work_code = ""; // "XXX.XX";
 
     if (parent_card_id > 0) {
         std::string parent_id_str = std::to_string(parent_card_id);
