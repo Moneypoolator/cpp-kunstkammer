@@ -94,6 +94,10 @@ public:
     }
 
     // Включить/выключить лимитер
+    bool is_enabled() const {
+        return _enabled;
+    }
+    
     void set_enabled(bool enabled) {
         std::lock_guard<std::mutex> lock(_mutex);
         _enabled = enabled;

@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     ("clear-cache", "Clear all caches")
     ("rate-limit-per-minute", po::value<int>()->default_value(60), "Requests per minute limit")
     ("rate-limit-per-hour", po::value<int>()->default_value(1000), "Requests per hour limit")
-    ("request-interval", po::value<int>()->default_value(100), "Minimum interval between requests (ms)")
+    ("request-interval", po::value<int>()->default_value(500), "Minimum interval between requests (ms)")
     ("limit", po::value<int>()->default_value(100), "Maximum records per request (max: 100)")
     ("offset", po::value<int>()->default_value(0), "Number of records to skip")
     ("sort-by", po::value<std::string>(), "Sort field (e.g., 'updated', 'created')")
@@ -133,18 +133,18 @@ int main(int argc, char** argv)
     }
 
     // Настройка rate limiting
+    int per_minute = vm["rate-limit-per-minute"].as<int>();
+    int per_hour = vm["rate-limit-per-hour"].as<int>();
+    int interval_ms = vm["request-interval"].as<int>();
+
+    kaiten::global_rate_limiter.set_enabled(true);
+    kaiten::global_rate_limiter.set_limits(per_minute, per_hour, interval_ms);
+    std::cout << "Rate limiting: " << per_minute << "/min, "
+              << per_hour << "/hour, interval: " << interval_ms << "ms" << std::endl;
+
     if (option_exists(vm, "no-rate-limit")) {
         kaiten::global_rate_limiter.set_enabled(false);
         std::cout << "Rate limiting disabled" << std::endl;
-    } else {
-        int per_minute = vm["rate-limit-per-minute"].as<int>();
-        int per_hour = vm["rate-limit-per-hour"].as<int>();
-        int interval_ms = vm["request-interval"].as<int>();
-
-        kaiten::global_rate_limiter.set_enabled(true);
-        kaiten::global_rate_limiter.set_limits(per_minute, per_hour, interval_ms);
-        std::cout << "Rate limiting: " << per_minute << "/min, "
-                  << per_hour << "/hour, interval: " << interval_ms << "ms" << std::endl;
     }
 
     // Настройка кэширования
@@ -281,7 +281,8 @@ int main(int argc, char** argv)
         kaiten::Api_cache::print_all_stats();
     }
 
-    if (!option_exists(vm, "no-rate-limit") && option_exists(vm, "rate-limit-stats")) {
+    // if (!option_exists(vm, "no-rate-limit") && option_exists(vm, "rate-limit-stats")) {
+    if (kaiten::global_rate_limiter.is_enabled()) {
         kaiten::global_rate_limiter.print_stats();
     }
 
