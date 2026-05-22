@@ -15,7 +15,7 @@ public:
     explicit Rate_limiter(
         int max_requests_per_minute = 60,
         int max_requests_per_hour = 1000,
-        const std::chrono::milliseconds& min_request_interval = std::chrono::milliseconds(100)
+        const std::chrono::milliseconds& min_request_interval = std::chrono::milliseconds(500)
     ) : _max_per_minute(max_requests_per_minute),
         _max_per_hour(max_requests_per_hour),
         _min_interval(min_request_interval),
@@ -100,10 +100,11 @@ public:
     }
 
     // Установить новые лимиты
-    void set_limits(int per_minute, int per_hour) {
+    void set_limits(int per_minute, int per_hour, int milliseconds_interval) {
         std::lock_guard<std::mutex> lock(_mutex);
         _max_per_minute = per_minute;
         _max_per_hour = per_hour;
+        _min_interval = std::chrono::milliseconds(milliseconds_interval);
     }
 
 private:

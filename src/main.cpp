@@ -115,9 +115,9 @@ int main(int argc, char** argv)
                 std::cout << "LaneID: " << config.laneId << std::endl;
                 std::cout << "SpaceID: " << config.spaceId << std::endl;
             
-                std::cout << "TaskTypeId" << config.taskTypeId;
-                std::cout << "TaskSize" << config.taskSize;
-                std::cout << "Role" << config.role;
+                std::cout << "TaskTypeId" << config.taskTypeId << std::endl;
+                std::cout << "TaskSize" << config.taskSize << std::endl;
+                std::cout << "Role" << config.role << std::endl;
 
             } catch (nlohmann::json::parse_error& e) {
                 std::cerr << "Failed to parse config file: " << e.what() << std::endl;
@@ -141,7 +141,8 @@ int main(int argc, char** argv)
         int per_hour = vm["rate-limit-per-hour"].as<int>();
         int interval_ms = vm["request-interval"].as<int>();
 
-        kaiten::global_rate_limiter.set_limits(per_minute, per_hour);
+        kaiten::global_rate_limiter.set_enabled(true);
+        kaiten::global_rate_limiter.set_limits(per_minute, per_hour, interval_ms);
         std::cout << "Rate limiting: " << per_minute << "/min, "
                   << per_hour << "/hour, interval: " << interval_ms << "ms" << std::endl;
     }
@@ -280,7 +281,7 @@ int main(int argc, char** argv)
         kaiten::Api_cache::print_all_stats();
     }
 
-    if (!option_exists(vm, "no-rate-limit") && !option_exists(vm, "rate-limit-stats")) {
+    if (!option_exists(vm, "no-rate-limit") && option_exists(vm, "rate-limit-stats")) {
         kaiten::global_rate_limiter.print_stats();
     }
 
