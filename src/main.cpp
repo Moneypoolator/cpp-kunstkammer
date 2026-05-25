@@ -281,8 +281,8 @@ int main(int argc, char** argv)
         kaiten::Api_cache::print_all_stats();
     }
 
-    // if (!option_exists(vm, "no-rate-limit") && option_exists(vm, "rate-limit-stats")) {
-    if (kaiten::global_rate_limiter.is_enabled()) {
+    if (!option_exists(vm, "no-rate-limit") && option_exists(vm, "rate-limit-stats")) {
+    //if (kaiten::global_rate_limiter.is_enabled()) {
         kaiten::global_rate_limiter.print_stats();
     }
 
