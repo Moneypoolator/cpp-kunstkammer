@@ -13,6 +13,7 @@
 #include "kaiten.hpp"
 #include "pagination.hpp"
 #include "rate_limiter.hpp"
+#include "logger.hpp"
 // #include "card_operations.hpp"
 // #include "user_operations.hpp"
 // #include "board_operations.hpp"
@@ -173,7 +174,7 @@ int handle_get_card(Http_client& client, const std::string& host, const std::str
         return 0;
     }
 
-    std::cerr << "Failed to get card. Status: " << status << std::endl;
+    LOG_ERROR("Failed to get card. Status: {}", status);
     return 1;
 }
 
@@ -345,7 +346,7 @@ bool fetch_parent_card_info(
         return true;
 
     } catch (const std::exception& e) {
-        std::cerr << "Error processing parent card: " << e.what() << std::endl;
+        LOG_ERROR("Error processing parent card: {}", e.what());
         return false;
     }
 }
@@ -509,7 +510,7 @@ bool update_card_title_with_work_code(
         return true;
     }
 
-    std::cerr << "Failed to update card title" << std::endl;
+    LOG_ERROR("Failed to update card title");
     return false;
 }
 
@@ -530,7 +531,7 @@ void add_tags_to_created_card(
         if (status == 200 || status == 201) {
             std::cout << "Tag '" << tag << "' added successfully" << std::endl;
         } else {
-            std::cerr << "Failed to add tag '" << tag << "'" << std::endl;
+            LOG_ERROR("Failed to add tag '{}'", tag);
         }
     }
 }
@@ -557,7 +558,7 @@ bool link_card_to_parent(
         return true;
     }
 
-    std::cerr << "Failed to link child to parent" << std::endl;
+    LOG_ERROR("Failed to link child to parent");
     return false;
 }
 
@@ -579,7 +580,7 @@ std::optional<Card> create_card_with_postprocessing(
     auto [status, created_card] = create_card_in_system(client, host, port, api_path, token, card_data);
 
     if (status != 200 && status != 201) {
-        std::cerr << "✗ Failed to create card. Status: " << status << std::endl;
+        LOG_ERROR("✗ Failed to create card. Status: {}", status);
         return std::nullopt;
     }
 
@@ -656,7 +657,7 @@ std::pair<int, int> process_backlog_entry(
 
     // Проверяем наличие задач
     if (!entry.contains("tasks") || !entry["tasks"].is_array()) {
-        std::cerr << "Backlog entry has no 'tasks' array, skipping." << std::endl;
+        LOG_WARN("Backlog entry has no 'tasks' array, skipping.");
         return { 0, 1 };
     }
 
@@ -696,7 +697,7 @@ int handle_backlog(Http_client& client, const std::string& host, const std::stri
     // Загрузка и валидация JSON файла
     std::ifstream f(backlog_file_path);
     if (!f) {
-        std::cerr << "Could not open backlog file: " << backlog_file_path << std::endl;
+        LOG_ERROR("Could not open backlog file: {}", backlog_file_path);
         return 1;
     }
 
@@ -704,12 +705,12 @@ int handle_backlog(Http_client& client, const std::string& host, const std::stri
     try {
         f >> backlog_json;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to parse backlog JSON: " << e.what() << std::endl;
+        LOG_ERROR("Failed to parse backlog JSON: {}", e.what());
         return 1;
     }
 
     if (!backlog_json.contains("backlog") || !backlog_json["backlog"].is_array()) {
-        std::cerr << "Invalid backlog JSON: missing 'backlog' array" << std::endl;
+        LOG_ERROR("Invalid backlog JSON: missing 'backlog' array");
         return 1;
     }
 
@@ -754,7 +755,7 @@ static std::map<std::string, FilterHandler> filter_handlers()
              try {
                  params.board_id = std::stoll(value);
              } catch (const std::exception& e) {
-                 std::cerr << "Warning: Invalid board_id format: " << value << std::endl;
+                 LOG_WARN("Invalid board_id format: {}", value);
              }
          } },
 
@@ -762,7 +763,7 @@ static std::map<std::string, FilterHandler> filter_handlers()
              try {
                  params.lane_id = std::stoll(value);
              } catch (const std::exception& e) {
-                 std::cerr << "Warning: Invalid lane_id format: " << value << std::endl;
+                 LOG_WARN("Invalid lane_id format: {}", value);
              }
          } },
 
@@ -770,7 +771,7 @@ static std::map<std::string, FilterHandler> filter_handlers()
              try {
                  params.column_id = std::stoll(value);
              } catch (const std::exception& e) {
-                 std::cerr << "Warning: Invalid column_id format: " << value << std::endl;
+                 LOG_WARN("Invalid column_id format: {}", value);
              }
          } },
 
@@ -778,7 +779,7 @@ static std::map<std::string, FilterHandler> filter_handlers()
              try {
                  params.owner_id = std::stoll(value);
              } catch (const std::exception& e) {
-                 std::cerr << "Warning: Invalid owner_id format: " << value << std::endl;
+                 LOG_WARN("Invalid owner_id format: {}", value);
              }
          } },
 
@@ -786,7 +787,7 @@ static std::map<std::string, FilterHandler> filter_handlers()
              try {
                  params.member_id = std::stoll(value);
              } catch (const std::exception& e) {
-                 std::cerr << "Warning: Invalid member_id format: " << value << std::endl;
+                 LOG_WARN("Invalid member_id format: {}", value);
              }
          } },
 
@@ -794,7 +795,7 @@ static std::map<std::string, FilterHandler> filter_handlers()
              try {
                  params.type_id = std::stoll(value);
              } catch (const std::exception& e) {
-                 std::cerr << "Warning: Invalid type_id format: " << value << std::endl;
+                 LOG_WARN("Invalid type_id format: {}", value);
              }
          } },
 
@@ -842,7 +843,7 @@ static std::map<std::string, FilterHandler> filter_handlers()
              try {
                  params.condition = std::stoi(value);
              } catch (const std::exception& e) {
-                 std::cerr << "Warning: Invalid condition format: " << value << std::endl;
+                 LOG_WARN("Invalid condition format: {}", value);
              }
          } },
 
@@ -865,7 +866,7 @@ void apply_filters(kaiten::Card_filter_params& filter_params, const std::map<std
             try {
                 handler_it->second(filter_params, value);
             } catch (const std::exception& e) {
-                std::cerr << "Error applying filter '" << key << "': " << e.what() << std::endl;
+                LOG_ERROR("Error applying filter '{}': {}", key, e.what());
             }
         } else {
             // Неизвестный фильтр - добавляем как кастомный
@@ -965,7 +966,7 @@ int handle_cards_filter(Http_client& client, const std::string& host, const std:
         filter_params, pagination.per_page());
 
     if (status != 200) {
-        std::cerr << "Failed to get filtered cards. Status: " << status << std::endl;
+        LOG_ERROR("Failed to get filtered cards. Status: {}", status);
         return 1;
     }
 
@@ -1017,11 +1018,11 @@ int handle_get_user(Http_client& client, const std::string& host, const std::str
             return 0;
         }
 
-        std::cerr << "Failed to get user. Status: " << status << std::endl;
+        LOG_ERROR("Failed to get user. Status: {}", status);
         return 1;
 
     } catch (const std::exception& e) {
-        std::cerr << "Invalid user ID: " << user_id << " - " << e.what() << std::endl;
+        LOG_ERROR("Invalid user ID: {} - {}", user_id, e.what());
         return 1;
     }
 }
@@ -1034,7 +1035,7 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     int size, std::int64_t parent_card_id, const std::vector<std::string>& tags)
 {
     if (title.empty()) {
-        std::cerr << "Error: Card title cannot be empty" << std::endl;
+        LOG_ERROR("Card title cannot be empty");
         return 1;
     }
 
@@ -1243,7 +1244,7 @@ int handle_cards_list_simple(Http_client& client, const std::string& host, const
         no_filters, page_size);
 
     if (status != 200) {
-        std::cerr << "Failed to fetch cards. Status: " << status << std::endl;
+        LOG_ERROR("Failed to fetch cards. Status: {}", status);
         return 1;
     }
 

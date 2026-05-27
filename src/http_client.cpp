@@ -1,4 +1,5 @@
 #include "http_client.hpp"
+#include "logger.hpp"
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -21,12 +22,12 @@ std::pair<int, std::string> Http_client::post(const std::string& host, const std
 
     try
     {
-        std::cout << "POST Host: " << host << "\nPOST Port: " << port << "\nPOST Path: " << target << std::endl;
+        LOG_DEBUG("POST Host: {} Port: {} Path: {}", host, port, target);
 
         // Get connection from pool
         auto conn_result = _connection_pool->get_connection(host, port);
         if (conn_result.first != 0) {
-            std::cerr << "Failed to get connection from pool" << std::endl;
+            LOG_ERROR("Failed to get connection from pool");
             return { -1, "" };
         }
 
@@ -42,8 +43,8 @@ std::pair<int, std::string> Http_client::post(const std::string& host, const std
         req.body() = body;
         req.prepare_payload();
 
-        std::cout << "Outgoing request to: " << host << target << std::endl;
-        std::cout << "Request body: " << body << std::endl;
+        LOG_DEBUG("Outgoing request to: {}{}", host, target);
+        LOG_TRACE("Request body: {}", body);
 
         http::write(stream, req);
 
@@ -54,20 +55,20 @@ std::pair<int, std::string> Http_client::post(const std::string& host, const std
         int status = static_cast<int>(res.result());
         std::string response_body = beast::buffers_to_string(res.body().data());
 
-        std::cout << "Response status: " << status << std::endl;
-        //std::cout << "Response body: " << response_body << std::endl;
+        LOG_DEBUG("Response status: {}", status);
+        // LOG_TRACE("Response body: {}", response_body);
 
         return { status, response_body };
     } catch (const beast::system_error& e)
     {
-        std::cerr << "Beast system error in POST: " << e.what() << std::endl;
+        LOG_ERROR("Beast system error in POST: {}", e.what());
         if (e.code().category() == net::error::get_ssl_category()) {
-            std::cerr << "SSL error code: " << e.code().value() << std::endl;
+            LOG_ERROR("SSL error code: {}", e.code().value());
         }
         return { -1, "" };
     } catch (std::exception const& e)
     {
-        std::cerr << "Error in POST: " << e.what() << std::endl;
+        LOG_ERROR("Error in POST: {}", e.what());
         return { -1, "" };
     }
 }
@@ -79,12 +80,12 @@ std::pair<int, std::string> Http_client::get(const std::string& host, const std:
 
     try
     {
-        std::cout << "GET Host: " << host << "\nGET Port: " << port << "\nGET Path: " << target << std::endl;
+        LOG_DEBUG("GET Host: {} Port: {} Path: {}", host, port, target);
 
         // Get connection from pool
         auto conn_result = _connection_pool->get_connection(host, port);
         if (conn_result.first != 0) {
-            std::cerr << "Failed to get connection from pool" << std::endl;
+            LOG_ERROR("Failed to get connection from pool");
             return { -1, "" };
         }
 
@@ -99,9 +100,9 @@ std::pair<int, std::string> Http_client::get(const std::string& host, const std:
             req.set(http::field::authorization, "Bearer " + token);
         }
 
-        std::cout << "GET Headers:\n";
+        LOG_TRACE("GET Headers:");
         for (auto const& field : req) {
-            std::cout << "  " << field.name_string() << ": " << field.value() << std::endl;
+            LOG_TRACE("  {}: {}", field.name_string(), field.value());
         }
 
         http::write(stream, req);
@@ -116,7 +117,7 @@ std::pair<int, std::string> Http_client::get(const std::string& host, const std:
         return { status, response_body };
     } catch (std::exception const& e)
     {
-        std::cerr << "GET Error: " << e.what() << std::endl;
+        LOG_ERROR("GET Error: {}", e.what());
         return { -1, "" };
     }
 }
@@ -131,7 +132,7 @@ std::pair<int, std::string> Http_client::patch(const std::string& host, const st
         // Get connection from pool
         auto conn_result = _connection_pool->get_connection(host, port);
         if (conn_result.first != 0) {
-            std::cerr << "Failed to get connection from pool" << std::endl;
+            LOG_ERROR("Failed to get connection from pool");
             return { -1, "" };
         }
 
@@ -159,7 +160,7 @@ std::pair<int, std::string> Http_client::patch(const std::string& host, const st
         return { status, response_body };
     } catch (std::exception const& e)
     {
-        std::cerr << "PATCH Error: " << e.what() << std::endl;
+        LOG_ERROR("PATCH Error: {}", e.what());
         return { -1, "" };
     }
 }

@@ -1,6 +1,6 @@
 #include "error_handler.hpp"
+#include "logger.hpp"
 
-#include <iostream>
 #include <sstream>
 #include "../third_party/nlohmann/json.hpp"
 
@@ -13,8 +13,6 @@ namespace error_handler {
         if (!context.empty()) {
             oss << "[" << context << "] ";
         }
-        
-        oss << "Error: ";
         
         switch (error.category) {
             case Error_category::NETWORK:
@@ -53,10 +51,31 @@ namespace error_handler {
             oss << " - " << error.details;
         }
         
-        std::cerr << oss.str() << std::endl;
+        std::string error_message = oss.str();
+        
+        // Log with appropriate level based on error category
+        switch (error.category) {
+            case Error_category::NETWORK:
+            case Error_category::API:
+                LOG_ERROR("{}", error_message);
+                break;
+            case Error_category::AUTHENTICATION:
+                LOG_WARN("{}", error_message);
+                break;
+            case Error_category::PARSING:
+            case Error_category::VALIDATION:
+            case Error_category::CONFIGURATION:
+            case Error_category::FILESYSTEM:
+                LOG_ERROR("{}", error_message);
+                break;
+            case Error_category::UNKNOWN:
+            default:
+                LOG_CRITICAL("{}", error_message);
+                break;
+        }
         
         if (!error.recovery_suggestion.empty()) {
-            std::cerr << "Suggestion: " << error.recovery_suggestion << std::endl;
+            LOG_INFO("Suggestion: {}", error.recovery_suggestion);
         }
     }
     

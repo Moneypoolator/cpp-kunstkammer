@@ -14,6 +14,8 @@
 
 #include <boost/asio/ssl.hpp>
 
+#include "logger.hpp"
+
 namespace po = boost::program_options;
 namespace ssl = boost::asio::ssl;
 
@@ -41,7 +43,7 @@ std::map<std::string, std::string> parse_filters(const std::string& filters_str)
             // URL encode значение?
             filters[key] = value;
         } else {
-            std::cerr << "Warning: Invalid filter format: " << filter << " (expected key=value)" << std::endl;
+            LOG_WARN("Invalid filter format: {} (expected key=value)", filter);
         }
     }
 
@@ -88,11 +90,14 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    // Initialize logger with default settings (will be updated after config load)
+    kaiten::Logger::init("info", true, false);
+
     // Проверка наличия хотя бы одной опции
     bool has_mode = option_exists(vm, "report") || option_exists(vm, "get-card") || option_exists(vm, "cards-list") || option_exists(vm, "cards-filter") || option_exists(vm, "users-list") || option_exists(vm, "get-user") || option_exists(vm, "boards-list") || option_exists(vm, "create-card") || option_exists(vm, "backlog");
 
     if (!has_mode) {
-        std::cerr << "Error: No operation mode specified" << std::endl;
+        LOG_ERROR("No operation mode specified");
         std::cout << desc << "\n";
         return 1;
     }
@@ -108,6 +113,9 @@ int main(int argc, char** argv)
                 nlohmann::json data = nlohmann::json::parse(f);
                 config = data.get<Config>();
 
+                // Update logger level from config
+                kaiten::Logger::set_level(config.logLevel);
+
                 std::cout << "Config loaded from " << config_file << std::endl;
                 std::cout << "BaseURL: " << config.baseUrl << std::endl;
                 std::cout << "BoardID: " << config.boardId << std::endl;
@@ -120,15 +128,15 @@ int main(int argc, char** argv)
                 std::cout << "Role" << config.role << std::endl;
 
             } catch (nlohmann::json::parse_error& e) {
-                std::cerr << "Failed to parse config file: " << e.what() << std::endl;
+                LOG_ERROR("Failed to parse config file: {}", e.what());
                 return 1;
             }
         } else {
-            std::cerr << "Could not open config file: " << config_file << std::endl;
+            LOG_ERROR("Could not open config file: {}", config_file);
             return 1;
         }
     } else {
-        std::cerr << "Empty config file name" << std::endl;
+        LOG_ERROR("Empty config file name");
         return 1;
     }
 
@@ -177,7 +185,7 @@ int main(int argc, char** argv)
         // Можно использовать для настройки пагинации
         int limit = vm["limit"].as<int>();
         if (limit > 100) {
-            std::cout << "Warning: Kaiten API maximum limit is 100, using 100" << std::endl;
+            LOG_WARN("Kaiten API maximum limit is 100, using 100");
             limit = 100;
         }
     }

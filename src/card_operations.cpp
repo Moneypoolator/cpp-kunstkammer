@@ -14,6 +14,7 @@
 #include "pagination.hpp"
 #include "error_handler.hpp"
 #include "api_utils.hpp"
+#include "logger.hpp"
 
 namespace kaiten {
 namespace card_operations {
@@ -518,7 +519,7 @@ std::pair<int, std::vector<Card>> get_all_cards_batched(
                         has_more_pages = true;
                     }
                 } catch (const std::exception& e) {
-                    std::cerr << "Error fetching page at offset " << batch_offsets[i] << ": " << e.what() << std::endl;
+                    LOG_ERROR("Error fetching page at offset {}: {}", batch_offsets[i], e.what());
                     last_status = 500; // Internal server error
                 }
             }

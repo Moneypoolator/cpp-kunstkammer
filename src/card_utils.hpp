@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <optional>
+#include "logger.hpp"
 
 // Вспомогательные функции для безопасного парсинга
 template<typename T>
@@ -15,7 +16,7 @@ T get_optional(const nlohmann::json& j, const std::string& key, const T& default
         try {
             return j.at(key).get<T>();
         } catch (const nlohmann::json::type_error& e) {
-            std::cerr << "Warning: Type error for key '" << key << "': " << e.what() << std::endl;
+            LOG_WARN("Type error for key '{}': {}", key, e.what());
             return default_value;
         } catch (...) {
             return default_value;

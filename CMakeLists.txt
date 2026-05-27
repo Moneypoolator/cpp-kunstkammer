@@ -13,6 +13,7 @@ endif()
 find_package(Boost 1.71.0 REQUIRED COMPONENTS program_options system)
 find_package(OpenSSL REQUIRED)
 find_package(GTest REQUIRED)
+find_package(spdlog REQUIRED)
 
 # Настройка компилятора
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -72,6 +73,7 @@ set(SOURCES
     src/api_utils.cpp
     src/offline_manager.cpp
     src/connection_pool.cpp
+    src/logger.cpp
 )
 
 # Исходные файлы для библиотеки
@@ -89,10 +91,14 @@ set(LIB_SOURCES
     src/api_utils.cpp
     src/offline_manager.cpp
     src/connection_pool.cpp
+    src/logger.cpp
 )
 
 # Создание библиотеки для общего кода
 add_library(kunstkammer_lib ${LIB_SOURCES})
+
+# Link spdlog to the library since it contains logger implementation
+target_link_libraries(kunstkammer_lib PRIVATE spdlog::spdlog)
 
 add_executable(kunstkammer src/main.cpp)
 
@@ -110,14 +116,21 @@ target_include_directories(kunstkammer_lib PUBLIC
 )
 
 # Линковка
+# target_link_libraries(kunstkammer PRIVATE
+#     Boost::program_options
+#     Boost::system
+#     OpenSSL::SSL
+#     OpenSSL::Crypto
+#     kunstkammer_lib
+# )
+
 target_link_libraries(kunstkammer PRIVATE
-    Boost::program_options
-    Boost::system
-    OpenSSL::SSL
-    OpenSSL::Crypto
+    boost::boost 
+    openssl::openssl
+    gtest::gtest
+    spdlog::spdlog
     kunstkammer_lib
 )
-
 
 # Дополнительные настройки для Release сборки
 if(CMAKE_BUILD_TYPE STREQUAL "Release")

@@ -1,6 +1,7 @@
 #include "connection_pool.hpp"
 #include <iostream>
 #include <algorithm>
+#include "logger.hpp"
 
 namespace kaiten {
 
@@ -128,7 +129,7 @@ namespace kaiten {
             // Set SNI Hostname
             if (!SSL_set_tlsext_host_name(stream->native_handle(), host.c_str())) {
                 beast::error_code ec { static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
-                std::cerr << "SSL SNI error: " << ec.message() << std::endl;
+                LOG_ERROR("SSL SNI error: {}", ec.message());
                 return { -1, nullptr };
             }
 
@@ -142,7 +143,7 @@ namespace kaiten {
 
             return { 0, stream };
         } catch (const std::exception& e) {
-            std::cerr << "Error creating connection: " << e.what() << std::endl;
+            LOG_ERROR("Error creating connection: {}", e.what());
             return { -1, nullptr };
         }
     }

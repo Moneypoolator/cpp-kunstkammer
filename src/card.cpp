@@ -2,6 +2,7 @@
 #include "card.hpp"
 #include "card_utils.hpp"
 #include <iostream>
+#include "logger.hpp"
 
 // // Вспомогательная функция для безопасного получения значений с обработкой null
 // template<typename T>
@@ -475,10 +476,10 @@ void from_json(const nlohmann::json& j, Card& c)
         }
 
     } catch (const std::exception& e) {
-        std::cerr << "Error parsing Card JSON: " << e.what() << std::endl;
+        LOG_ERROR("Error parsing Card JSON: {}", e.what());
         // Выводим дополнительную информацию для отладки
         if (j.contains("id")) {
-            std::cerr << "Card ID: " << j.at("id") << std::endl;
+            LOG_ERROR("Card ID: {}", j.at("id").dump());
         }
         throw;
     }

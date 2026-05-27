@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <random>
 #include <chrono>
+#include "logger.hpp"
 
 namespace kaiten {
 namespace offline {
@@ -43,7 +44,7 @@ namespace offline {
             _initialized = true;
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "Failed to initialize offline manager: " << e.what() << std::endl;
+            LOG_ERROR("Failed to initialize offline manager: {}", e.what());
             return false;
         }
     }
@@ -269,7 +270,7 @@ namespace offline {
                 return true;
             }
         } catch (const std::exception& e) {
-            std::cerr << "Failed to save operations: " << e.what() << std::endl;
+            LOG_ERROR("Failed to save operations: {}", e.what());
         }
         
         return false;
@@ -322,7 +323,7 @@ namespace offline {
             
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "Failed to load operations: " << e.what() << std::endl;
+            LOG_ERROR("Failed to load operations: {}", e.what());
             return false;
         }
     }
