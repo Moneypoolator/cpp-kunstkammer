@@ -1,14 +1,13 @@
 #include "user_operations.hpp"
 
-#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "cache.hpp"
 #include "card.hpp"
-// #include "card_utils.hpp"
 #include "http_client.hpp"
+#include "logger.hpp"
 #include "pagination.hpp"
 #include "error_handler.hpp"
 #include "api_utils.hpp"
@@ -29,11 +28,11 @@ std::pair<int, User> get_user(
     // Пробуем получить из кэша
     auto cached = Api_cache::user_cache().get(user_id);
     if (cached.has_value()) {
-        std::cout << "Cache HIT for user ID: " << user_id << std::endl;
+        LOG_INFO("Cache HIT for user ID: {}", user_id);
         return std::make_pair(200, cached.value());
     }
 
-    std::cout << "Cache MISS for user ID: " << user_id << std::endl;
+    LOG_INFO("Cache MISS for user ID: {}", user_id);
 
     std::string target = api_path + "/spaces/" + std::to_string(space_id) + "/users/" + std::to_string(user_id);
 
@@ -227,29 +226,29 @@ std::pair<int, std::vector<User>> get_all_users(
     Pagination_params pagination;
     pagination.limit = (page_size > 100) ? 100 : page_size; // Kaiten API max limit is 100
     
-    std::cout << "Starting fetch of all users..." << std::endl;
+    LOG_INFO("Starting fetch of all users...");
     
     // Fetch the first page to determine if there are more pages
-    std::cout << "Fetching first page of users..." << std::endl;
+    LOG_INFO("Fetching first page of users...");
     
     pagination.offset = 0;
     auto first_page_result = get_users_paginated(client, host, port, api_path, token, 
                                                 pagination, filters);
     
     if (first_page_result.items.empty()) {
-        std::cout << "No users found." << std::endl;
+        LOG_ERROR("No users found on first page");
         return std::make_pair(last_status, std::vector<User>{});
     }
     
     // Store first page results
     std::vector<User> all_users = first_page_result.items;
-    std::cout << "Page 0 (offset 0): " << first_page_result.items.size() << " users" << std::endl;
+    LOG_INFO("Page 0 (offset 0): {} users", first_page_result.items.size());
     
     // Fetch remaining pages if there are more
     if (first_page_result.has_more) {
         int current_offset = pagination.limit;
         
-        std::cout << "Fetching additional pages..." << std::endl;
+        LOG_INFO("Fetching additional pages...");
         
         // Continue fetching pages until no more results
         while (true) {
@@ -265,9 +264,8 @@ std::pair<int, std::vector<User>> get_all_users(
                            page_result.items.begin(), 
                            page_result.items.end());
             
-            std::cout << "Page at offset " << current_offset << ": " << page_result.items.size() 
-                      << " users, total: " << all_users.size() << std::endl;
-            
+            LOG_INFO("Page at offset {}: {} users, total: {}", current_offset, page_result.items.size(), all_users.size());
+                        
             // If this page doesn't have more results, we're done
             if (!page_result.has_more) {
                 break;
@@ -277,7 +275,7 @@ std::pair<int, std::vector<User>> get_all_users(
         }
     }
     
-    std::cout << "Finished fetching users. Total: " << all_users.size() << std::endl;
+    LOG_INFO("Finished fetching all users. Total: {}", all_users.size());
     
     return std::make_pair(last_status, all_users);
 }

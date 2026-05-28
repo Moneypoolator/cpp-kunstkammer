@@ -351,8 +351,7 @@ namespace offline {
     {
         // This is a placeholder implementation
         // In a real implementation, this would make actual API calls
-        std::cout << "Processing CREATE operation for " << operation.resource_type 
-                  << " with ID " << operation.resource_id << std::endl;
+        LOG_INFO("Processing CREATE operation for {} with ID {}", operation.resource_type, operation.resource_id);
         return true;
     }
 
@@ -361,8 +360,7 @@ namespace offline {
     {
         // This is a placeholder implementation
         // In a real implementation, this would make actual API calls
-        std::cout << "Processing UPDATE operation for " << operation.resource_type 
-                  << " with ID " << operation.resource_id << std::endl;
+        LOG_INFO("Processing UPDATE operation for {} with ID {}", operation.resource_type, operation.resource_id);
         return true;
     }
 
@@ -371,8 +369,7 @@ namespace offline {
     {
         // This is a placeholder implementation
         // In a real implementation, this would make actual API calls
-        std::cout << "Processing DELETE operation for " << operation.resource_type 
-                  << " with ID " << operation.resource_id << std::endl;
+        LOG_INFO("Processing DELETE operation for {} with ID {}", operation.resource_type, operation.resource_id);
         return true;
     }
 
@@ -381,8 +378,7 @@ namespace offline {
     {
         // This is a placeholder implementation
         // In a real implementation, this would make actual API calls
-        std::cout << "Processing GET operation for " << operation.resource_type 
-                  << " with ID " << operation.resource_id << std::endl;
+        LOG_INFO("Processing GET operation for {} with ID {}", operation.resource_type, operation.resource_id);
         return true;
     }
 

@@ -1,6 +1,7 @@
 #ifndef RATE_LIMITER_HPP
 #define RATE_LIMITER_HPP
 
+#include "logger.hpp"
 #include <chrono>
 #include <thread>
 #include <mutex>
@@ -39,9 +40,8 @@ public:
             auto time_since_hour_reset = now - _last_hour_reset;
             if (time_since_hour_reset < std::chrono::hours(1)) {
                 auto wait_time = std::chrono::hours(1) - time_since_hour_reset;
-                std::cout << "Hourly limit reached. Waiting " 
-                          << std::chrono::duration_cast<std::chrono::minutes>(wait_time).count() 
-                          << " minutes..." << std::endl;
+                LOG_WARN("Hourly limit reached. Waiting {} minutes...", 
+                      std::chrono::duration_cast<std::chrono::minutes>(wait_time).count());
                 std::this_thread::sleep_for(wait_time);
                 reset_counters();
             }
@@ -52,9 +52,8 @@ public:
             auto time_since_minute_reset = now - _last_minute_reset;
             if (time_since_minute_reset < std::chrono::minutes(1)) {
                 auto wait_time = std::chrono::minutes(1) - time_since_minute_reset;
-                std::cout << "Minute limit reached. Waiting " 
-                          << std::chrono::duration_cast<std::chrono::seconds>(wait_time).count() 
-                          << " seconds..." << std::endl;
+                LOG_WARN("Minute limit reached. Waiting {} seconds...", 
+                      std::chrono::duration_cast<std::chrono::seconds>(wait_time).count());
                 std::this_thread::sleep_for(wait_time);
                 reset_minute_counter();
             }

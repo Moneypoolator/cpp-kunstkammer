@@ -150,7 +150,7 @@ std::pair<int, Card> get_card(
     if (id_or_number.find("CARD-") == 0 || id_or_number.find("card-") == 0) {
         auto cached = Api_cache::card_number_cache().get(id_or_number);
         if (cached.has_value()) {
-            std::cout << "Cache HIT for card number: " << id_or_number << std::endl;
+            LOG_INFO("Cache HIT for card number: {}", id_or_number);
             return { 200, cached.value() };
         }
     } else {
@@ -159,7 +159,7 @@ std::pair<int, Card> get_card(
             std::int64_t card_id = std::stoll(id_or_number);
             auto cached = Api_cache::card_cache().get(card_id);
             if (cached.has_value()) {
-                std::cout << "Cache HIT for card ID: " << card_id << std::endl;
+                LOG_INFO("Cache HIT for card ID: {}", card_id);
                 return { 200, cached.value() };
             }
         } catch (...) {
@@ -167,7 +167,7 @@ std::pair<int, Card> get_card(
         }
     }
 
-    std::cout << "Cache MISS for: " << id_or_number << std::endl;
+    LOG_INFO("Cache MISS for: {}", id_or_number);
 
     std::string target = api_path + "/cards/" + id_or_number;
 
@@ -302,13 +302,13 @@ Paginated_result<Card> get_cards_paginated(
     Pagination_params safe_pagination = pagination;
     if (safe_pagination.limit > 100) {
         safe_pagination.limit = 100;
-        std::cout << "Warning: Kaiten API limit max is 100, using limit=100" << std::endl;
+        LOG_WARN("Warning: Kaiten API limit max is 100, using limit=100");
     }
     
     std::string query = Query_builder::build(safe_pagination, filters);
     std::string target = api_path + "/cards" + query;
     
-    std::cout << "API Request: " << target << std::endl;
+    LOG_INFO("API Request: {}", target);
     
     auto [status, response] = client.get(host, port, target, token);
     
@@ -432,15 +432,14 @@ std::pair<int, std::vector<Card>> get_all_cards_batched(
     std::vector<Card> all_cards;
     std::mutex cards_mutex; // Для потокобезопасного доступа к all_cards
     
-    std::cout << "Starting batched fetch of all cards using offset/limit approach..." << std::endl;
-    
+    LOG_INFO("Starting batched fetch of all cards...");    
     // Получаем первую страницу, чтобы определить, есть ли еще страницы
-    std::cout << "Fetching first page (offset 0, limit " << params.limit << ")..." << std::endl;
+    LOG_INFO("Fetching first page (offset 0, limit {})...", params.limit);
     
     auto first_page_result = get_cards_paginated(client, host, port, api_path, token, params, filters);
     
     if (first_page_result.items.empty()) {
-        std::cout << "No cards found." << std::endl;
+        LOG_ERROR("No cards found on the first page");
         return {last_status, {}};
     }
     
@@ -449,8 +448,7 @@ std::pair<int, std::vector<Card>> get_all_cards_batched(
         first_page_result.items.begin(),
         first_page_result.items.end());
     
-    std::cout << "Page 0 (offset 0): " << first_page_result.items.size()
-              << " cards, total: " << all_cards.size() << std::endl;
+    LOG_INFO("Page 0 (offset 0): {} cards, total: {}", first_page_result.items.size(), all_cards.size());
     
     // Если есть еще страницы, начинаем batch processing
     if (first_page_result.has_more) {
@@ -464,7 +462,7 @@ std::pair<int, std::vector<Card>> get_all_cards_batched(
         }
         // Ограничиваем количество потоков для экономии ресурсов
         max_threads = std::min(max_threads, 6U); // Максимум 6 потоков
-        std::cout << "Using " << max_threads << " threads for parallel fetching" << std::endl;
+        LOG_INFO("Using {} threads for batch processing", max_threads);
         
         while (has_more_pages) {
             // Создаем батч запросов на основе количества доступных потоков
@@ -526,13 +524,13 @@ std::pair<int, std::vector<Card>> get_all_cards_batched(
             
             // Если в батче не было страниц с has_more=true, прекращаем загрузку
             if (!has_more_pages) {
-                std::cout << "No more pages available, stopping." << std::endl;
+                LOG_WARN("No more pages available, stopping.");
                 break;
             }
         }
     }
     
-    std::cout << "Finished fetching cards. Total: " << all_cards.size() << std::endl;
+    LOG_INFO("Finished fetching cards. Total: {}", all_cards.size());
     
     return {last_status, all_cards};
 }

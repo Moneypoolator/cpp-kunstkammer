@@ -247,7 +247,7 @@ int handle_cards_list(Http_client& client, const std::string& host, const std::s
     }
     
     if (all_cards.empty()) {
-        std::cout << "No cards found." << std::endl;
+        LOG_WARN("No cards found.");
         return 1;
     }
     
@@ -335,11 +335,11 @@ bool fetch_parent_card_info(
                 work_code = work_code_temp;
                 std::cout << "Work code: " << work_code << ", product: " << product << std::endl;
             } else {
-                std::cout << "Extract Work Code error: " << error << std::endl;
+                LOG_ERROR("Extract Work Code error: {}", error);
                 return false;
             }
         } else {
-            std::cout << "Parent card title is empty" << std::endl;
+            LOG_WARN("Parent card title is empty");
             return false;
         }
 
@@ -371,13 +371,13 @@ std::int64_t find_responsible_user_id(
     if (status == 200 && !users.empty()) {
         for (const auto& user : users) {
             if (user.email == responsible_email && user.id > 0) {
-                std::cout << "Found responsible user: " << user.full_name << " <" << user.email << ">" << std::endl;
+                LOG_INFO("Found responsible user: {} <{}>", user.full_name, user.email); // "Found responsible user: {name} <{email}>
                 return user.id;
             }
         }
     }
 
-    std::cout << "Responsible user not found for email: " << responsible_email << std::endl;
+    LOG_WARN("Responsible user not found for email: {}", responsible_email);
     return 0;
 }
 
@@ -506,7 +506,7 @@ bool update_card_title_with_work_code(
         client, host, port, api_path, token, std::to_string(card_id), changes);
 
     if (status == 200 || status == 201) {
-        std::cout << "Card title updated successfully with work code" << std::endl;
+        LOG_INFO("Card title updated successfully with work code"); // "Card title updated successfully with work code\n
         return true;
     }
 
@@ -529,7 +529,7 @@ void add_tags_to_created_card(
     for (const auto& tag : tags) {
         auto [status, ok] = kaiten::add_tag_to_card(client, host, port, api_path, token, card_id, tag);
         if (status == 200 || status == 201) {
-            std::cout << "Tag '" << tag << "' added successfully" << std::endl;
+            LOG_INFO("Tag '{}' added successfully", tag);
         } else {
             LOG_ERROR("Failed to add tag '{}'", tag);
         }
@@ -554,7 +554,7 @@ bool link_card_to_parent(
 
     auto [status, ok] = kaiten::add_child_card(client, host, port, api_path, token, parent_card_id, child_card_id);
     if (status == 200 || status == 201) {
-        std::cout << "Child linked successfully to parent" << std::endl;
+        LOG_INFO("Child linked successfully to parent");
         return true;
     }
 
@@ -584,8 +584,9 @@ std::optional<Card> create_card_with_postprocessing(
         return std::nullopt;
     }
 
-    std::cout << "✓ Created card #" << created_card.number << " [" << created_card.id
-              << "] '" << created_card.title << "'" << std::endl;
+    LOG_INFO("Created card #{} [{}] '{}'", created_card.number, created_card.id, created_card.title);
+    // std::cout << "✓ Created card #" << created_card.number << " [" << created_card.id
+    //           << "] '" << created_card.title << "'" << std::endl;
 
     const std::int64_t child_card_id = created_card.id;
 
@@ -719,8 +720,9 @@ int handle_backlog(Http_client& client, const std::string& host, const std::stri
     std::int64_t current_user_id = 0;
     if (status == 200) {
         current_user_id = current_user.id;
-        std::cout << "Current user id=" << current_user.id << " " << current_user.full_name
-                  << " <" << current_user.email << ">" << std::endl;
+
+        LOG_INFO("Current user: id={} {} <{}>", current_user.id, current_user.full_name, current_user.email);
+        // std::cout << "Current user id=" << current_user.id << " " << current_user.full_name << " <" << current_user.email << ">" << std::endl;
     }
 
     // Обрабатываем каждую запись в бэклоге
@@ -736,8 +738,8 @@ int handle_backlog(Http_client& client, const std::string& host, const std::stri
     }
 
     // Вывод итоговой статистики
-    std::cout << "Backlog processing done. Success: " << total_success << ", Errors: " << total_errors << std::endl;
-
+    LOG_INFO("Backlog processing done. Success: {}, Errors: {}", total_success, total_errors);
+    
     return total_errors > 0 ? 1 : 0;
 }
 
@@ -871,7 +873,8 @@ void apply_filters(kaiten::Card_filter_params& filter_params, const std::map<std
         } else {
             // Неизвестный фильтр - добавляем как кастомный
             filter_params.custom_filters[key] = value;
-            std::cout << "Note: Using custom filter '" << key << "'" << std::endl;
+            LOG_INFO("Note: Using custom filter '{}'", key);
+            // std::cout << "Note: Using custom filter '" << key << "'" << std::endl;
         }
     }
 }
@@ -882,7 +885,7 @@ void apply_filters(kaiten::Card_filter_params& filter_params, const std::map<std
 void print_cards_statistics(const std::vector<Card>& cards)
 {
     if (cards.empty()) {
-        std::cout << "No cards to display statistics" << std::endl;
+        LOG_INFO("No cards to display statistics");
         return;
     }
 
@@ -934,7 +937,7 @@ void print_cards_list(const std::vector<Card>& cards)
 void print_applied_filters(const std::map<std::string, std::string>& filters)
 {
     if (filters.empty()) {
-        std::cout << "No filters applied" << std::endl;
+        LOG_INFO("No filters applied");
         return;
     }
 
@@ -978,7 +981,7 @@ int handle_cards_filter(Http_client& client, const std::string& host, const std:
         print_cards_list(cards);
         print_cards_statistics(cards);
     } else {
-        std::cout << "No cards matching the specified filters were found." << std::endl;
+        LOG_INFO("No cards matching the specified filters were found.");
     }
 
     return 0;
@@ -1044,8 +1047,7 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     std::int64_t current_user_id = 0;
     if (status == 200) {
         current_user_id = current_user.id;
-        std::cout << "Current user id=" << current_user.id << " " << current_user.full_name
-                  << " <" << current_user.email << ">" << std::endl;
+        LOG_INFO("Current user id={} {} <{}>", current_user.id, current_user.full_name, current_user.email);
     }
 
     // Получаем информацию о родительской карточке
