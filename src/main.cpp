@@ -123,9 +123,9 @@ int main(int argc, char** argv)
                 std::cout << "LaneID: " << config.laneId << std::endl;
                 std::cout << "SpaceID: " << config.spaceId << std::endl;
             
-                std::cout << "TaskTypeId" << config.taskTypeId << std::endl;
-                std::cout << "TaskSize" << config.taskSize << std::endl;
-                std::cout << "Role" << config.role << std::endl;
+                std::cout << "TaskTypeId: " << config.taskTypeId << std::endl;
+                std::cout << "TaskSize: " << config.taskSize << std::endl;
+                std::cout << "Role: " << config.role << std::endl;
 
             } catch (nlohmann::json::parse_error& e) {
                 LOG_ERROR("Failed to parse config file: {}", e.what());
@@ -147,12 +147,12 @@ int main(int argc, char** argv)
 
     kaiten::global_rate_limiter.set_enabled(true);
     kaiten::global_rate_limiter.set_limits(per_minute, per_hour, interval_ms);
-    std::cout << "Rate limiting: " << per_minute << "/min, "
-              << per_hour << "/hour, interval: " << interval_ms << "ms" << std::endl;
 
+    LOG_INFO("Rate limiting: {} per minute, {} per hour, interval: {} ms", per_minute, per_hour, interval_ms);
+    
     if (option_exists(vm, "no-rate-limit")) {
         kaiten::global_rate_limiter.set_enabled(false);
-        std::cout << "Rate limiting disabled" << std::endl;
+        LOG_WARN("Rate limiting disabled by user");
     }
 
     // Настройка кэширования
@@ -161,7 +161,7 @@ int main(int argc, char** argv)
         kaiten::Api_cache::user_cache().set_enabled(false);
         kaiten::Api_cache::list_cache().set_enabled(false);
         kaiten::Api_cache::board_cache().set_enabled(false);
-        std::cout << "Caching disabled" << std::endl;
+        LOG_WARN("Caching disabled by user");
     }
 
     // Показать статистику кэша
@@ -177,7 +177,7 @@ int main(int argc, char** argv)
     // Очистить кэш
     if (option_exists(vm, "clear-cache")) {
         kaiten::Api_cache::clear_all();
-        std::cout << "All caches cleared" << std::endl;
+        LOG_INFO("All caches cleared");
     }
 
     // В обработку параметров добавьте:
@@ -214,8 +214,8 @@ int main(int argc, char** argv)
         api_path = "";
     }
 
-    std::cout << "API Endpoint: " << host << ":" << port << api_path << std::endl;
-
+    LOG_INFO("API Endpoint: {}:{} and path {}", host, port, api_path);
+    
     // Инициализация HTTP клиента
     ssl::context ctx(ssl::context::tlsv12_client);
  
