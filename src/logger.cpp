@@ -102,14 +102,27 @@ void Logger::shutdown() {
     }
 }
 
-spdlog::level::level_enum Logger::string_to_level(const std::string& level) {
-    if (level == "trace") return spdlog::level::trace;
-    if (level == "debug") return spdlog::level::debug;
-    if (level == "info") return spdlog::level::info;
-    if (level == "warn") return spdlog::level::warn;
-    if (level == "error") return spdlog::level::err;
-    if (level == "critical") return spdlog::level::critical;
-    
+spdlog::level::level_enum Logger::string_to_level(const std::string& level)
+{
+    if (level == "trace") {
+        return spdlog::level::trace;
+    }
+    if (level == "debug") {
+        return spdlog::level::debug;
+    }
+    if (level == "info") {
+        return spdlog::level::info;
+    }
+    if (level == "warn") {
+        return spdlog::level::warn;
+    }
+    if (level == "error") {
+        return spdlog::level::err;
+    }
+    if (level == "critical") {
+        return spdlog::level::critical;
+    }
+
     // Default to info level
     LOG_WARN("Unknown log level '{}', defaulting to 'info'", level);
     return spdlog::level::info;
