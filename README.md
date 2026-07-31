@@ -17,6 +17,7 @@ C++ клиент для работы с API системы управления 
 ### Установка зависимостей
 
 #### Ubuntu/Debian
+
 ```bash
 sudo apt update
 sudo apt install build-essential cmake libgtest-dev libboost-system-dev libboost-program-options-dev libssl-dev make g++
@@ -61,7 +62,6 @@ choco install cmake --installargs "ADD_CMAKE_TO_PATH=System" -y
 scoop install cmake
 ```
 
-
 Уcтановить необходимые зависимости для x64 и выполнить интеграцию со средой сборки:
 
 ```bash
@@ -80,7 +80,6 @@ scoop install cmake
 cmake -S . -B build -A x64 -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build build --config RelWithDebInfo
 ```
-
 
 ### Сборка проекта
 
@@ -122,7 +121,6 @@ make -j$(nproc)
 ./build.sh -r -j 4
 ```
 
-
 ## Конфигурация
 
 Создайте файл config.json:
@@ -152,41 +150,46 @@ make -j$(nproc)
 ### Параметры командной строки
 
 Основные параметры
-* --config <file> - путь к файлу конфигурации (по умолчанию: config.json)
+
+* --config `<file>` - путь к файлу конфигурации (по умолчанию: config.json)
 * --help, -h - показать справку
 
 Режимы работы
-* --backlog <file> - создать карточек из JSON файла
-* --create-card <title> - создать одну карточку
-* --get-card <number> - получить карточку по номеру
+
+* --backlog `<file>` - создать карточек из JSON файла
+* --create-card `<title` - создать одну карточку
+* --get-card `<number>` - получить карточку по номеру
 * --cards-list - получить список карточек
-* --cards-filter <filters> - фильтрация карточек
+* --cards-filter `<filters>` - фильтрация карточек
 * --users-list - получить список пользователей
-* --get-user <id> - получить пользователя по ID
+* --get-user `<id>` - получить пользователя по ID
 * --boards-list - получить список досок
 
 Параметры создания карточек
-* --size <number> - размер карточки
-* --parent <number> - номер родительской карточки карточки
-* --tags <tags> - теги через запятую
+
+* --size `<number>` - размер карточки
+* --parent `<number>` - номер родительской карточки карточки
+* --tags `<tags>` - теги через запятую
 
 Управление кэшированием
+
 * --no-cache - отключить кэширование
 * --cache-stats - показать статистику кэша
 * --clear-cache - очистить все кэши
 
 Управление rate limiting
+
 * --no-rate-limit - отключить rate limiting
 * --rate-limit-stats - показать статистику rate limiting
-* --rate-limit-per-minute <number> - лимит запросов в минуту (по умолчанию: 60)
-* --rate-limit-per-hour <number> - лимит запросов в час (по умолчанию: 1000)
-* --request-interval <ms> - минимальный интервал между запросами (по умолчанию: 100мс)
+* --rate-limit-per-minute `<number>` - лимит запросов в минуту (по умолчанию: 60)
+* --rate-limit-per-hour `<number>` - лимит запросов в час (по умолчанию: 1000)
+* --request-interval `<ms>` - минимальный интервал между запросами (по умолчанию: 100мс)
 
 Пагинация
-* --limit <number> - размер страницы (по умолчанию: 100)
-* --sort-by <field> - поле для сортировки
-* --sort-order <order> - порядок сортировки (asc/desc)
 
+* --limit `<number>` - размер страницы (по умолчанию: 100)
+* --sort-by `<field>` - поле для сортировки
+* --sort-order `<order>` - порядок сортировки (asc/desc)
 
 ### Базовые команды
 
@@ -262,7 +265,6 @@ make -j$(nproc)
 }
 ```
 
-
 ### Примеры использования
 
 Создание нескольких карточек из файла
@@ -292,6 +294,7 @@ make -j$(nproc)
 ### Формат фильтров
 
 Фильтры задаются в формате key1=value1,key2=value2 :
+
 * board_id - ID доски
 * lane_id - ID лейна
 * column_id - ID колонки
@@ -306,14 +309,6 @@ make -j$(nproc)
 * search - полнотекстовый поиск
 * created_after, created_before - фильтр по дате создания
 * updated_after, updated_before - фильтр по дате обновления
-
-
-
-
-
-
-
-
 
 ### Пример использования
 
@@ -375,6 +370,3 @@ make -j$(nproc)
 # Комбинированное использование
 ./kunstkammer --cards-list --no-cache --rate-limit-per-minute 10
 ```
-
-
-
