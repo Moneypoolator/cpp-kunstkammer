@@ -57,6 +57,10 @@ struct Simple_card {
     static constexpr std::string_view role_id_property = "id_19";
     static constexpr std::string_view team_id_property = "id_143";
 
+    static constexpr std::string_view unknown_id_property_126 = "id_126";
+    static constexpr std::string_view unknown_id_property_62 = "id_62";
+    static constexpr std::string_view unknown_id_property_87 = "id_87";
+
 
     Simple_card() = default;
     

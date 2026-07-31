@@ -165,6 +165,7 @@ int handle_get_card(Http_client& client, const std::string& host, const std::str
         std::cout << "Owner: " << card.owner.full_name << std::endl;
 
         if (!card.properties.empty()) {
+            std::cout << "All Properties: " << card.properties << std::endl;
             std::cout << "Properties: ";
             for (const auto& value : card.properties) {
                 std::cout << (value) << " ";
