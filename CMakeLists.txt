@@ -98,7 +98,7 @@ set(LIB_SOURCES
 add_library(kunstkammer_lib ${LIB_SOURCES})
 
 # Link spdlog to the library since it contains logger implementation
-target_link_libraries(kunstkammer_lib PRIVATE spdlog::spdlog)
+target_link_libraries(kunstkammer_lib PRIVATE spdlog::spdlog boost::boost)
 
 add_executable(kunstkammer src/main.cpp)
 
