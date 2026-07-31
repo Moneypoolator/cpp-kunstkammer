@@ -10,7 +10,7 @@ if(POLICY CMP0167)
 endif()
 
 # Поиск зависимостей
-find_package(Boost 1.71.0 REQUIRED COMPONENTS program_options system)
+find_package(Boost REQUIRED COMPONENTS program_options system)
 find_package(OpenSSL REQUIRED)
 find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
@@ -98,7 +98,7 @@ set(LIB_SOURCES
 add_library(kunstkammer_lib ${LIB_SOURCES})
 
 # Link spdlog to the library since it contains logger implementation
-target_link_libraries(kunstkammer_lib PRIVATE spdlog::spdlog boost::boost)
+target_link_libraries(kunstkammer_lib PRIVATE spdlog::spdlog)
 
 add_executable(kunstkammer src/main.cpp)
 
