@@ -31,9 +31,6 @@ jobs:
             c_compiler: cl
             cpp_compiler: cl
           - os: ubuntu-latest
-            c_compiler: gcc
-            cpp_compiler: g++
-          - os: ubuntu-latest
             c_compiler: clang
             cpp_compiler: clang++
         exclude:
@@ -43,6 +40,9 @@ jobs:
             c_compiler: clang
           - os: ubuntu-latest
             c_compiler: cl
+          - os: ubuntu-latest
+            c_compiler: gcc
+            cpp_compiler: g++
 
     env:
       BUILD_DIR: build
@@ -71,7 +71,7 @@ jobs:
 
     - name: Install Ninja on Linux
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y ninja-build libgtest-dev libboost-system-dev libboost-program-options-dev libssl-dev
+      run: sudo apt-get update && sudo apt-get install -y ninja-build libgtest-dev libboost-system-dev libboost-program-options-dev libssl-dev libspdlog-dev libboost-all-dev
 
     - name: Install Ninja on macOS
       if: runner.os == 'macOS'
@@ -91,7 +91,7 @@ jobs:
       
     - name: Install Boost with vcpkg spte I on Windows
       if: runner.os == 'Windows'
-      run: cd vcpkg && .\vcpkg.exe install boost-program-options boost-system boost-beast openssl:x64-windows gtest:x64-windows
+      run: cd vcpkg && .\vcpkg.exe install boost boost-program-options boost-system boost-beast openssl:x64-windows gtest:x64-windows spdlog
 
     - name: Install Boost with vcpkg spet II on Windows
       if: runner.os == 'Windows'
