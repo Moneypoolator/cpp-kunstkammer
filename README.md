@@ -222,45 +222,44 @@ make -j$(nproc)
 ./kunstkammer --config config.json --backlog backlog.json
 ```
 
-
 ### Формат JSON для создания задач
 
 ```json
 
 {
   "backlog": [
-	  {
-		"parent": "64151",
-		"responsible": "developer1@myemailserver.com",
-		"role": "C++|Java|React|Test",
-		"tags": ["C++|QA|backend|frontend", "ГГИС"],
-		"tasks": [
-		  {
-			"size": 3,
-			"title": "Название задачи 1"
-		  },
-		  {
-			"size": 5,
-			"title": "Название задачи 2"
-		  }
-		]
-	  },
-	  {
-		"parent": "64053",
-		"responsible": "developer2@myemailserver.com",
-		"role": "C++|Java|React|Test",
-		"tags": ["C++|QA|backend|frontend", "ГГИС"],
-		"tasks": [
-		  {
-			"size": 3,
-			"title": "Название задачи 1"
-		  },
-		  {
-			"size": 5,
-			"title": "Название задачи 2" 
-		  }
-		]
-	  }
+   {
+  "parent": "64151",
+  "responsible": "developer1@myemailserver.com",
+  "role": "C++|Java|React|Test",
+  "tags": ["C++|QA|backend|frontend", "ГГИС"],
+  "tasks": [
+    {
+   "size": 3,
+   "title": "Название задачи 1"
+    },
+    {
+   "size": 5,
+   "title": "Название задачи 2"
+    }
+  ]
+   },
+   {
+  "parent": "64053",
+  "responsible": "developer2@myemailserver.com",
+  "role": "C++|Java|React|Test",
+  "tags": ["C++|QA|backend|frontend", "ГГИС"],
+  "tasks": [
+    {
+   "size": 3,
+   "title": "Название задачи 1"
+    },
+    {
+   "size": 5,
+   "title": "Название задачи 2" 
+    }
+  ]
+   }
   ]
 }
 ```
