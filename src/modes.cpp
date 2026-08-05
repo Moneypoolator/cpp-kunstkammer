@@ -1,5 +1,7 @@
 #include "modes.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -607,6 +609,43 @@ std::optional<Card> create_card_with_postprocessing(
     return created_card;
 }
 
+namespace {
+
+// Case-insensitive substring search.
+bool contains_ignore_case(const std::string& haystack, const std::string& needle)
+{
+    if (needle.empty()) {
+        return false;
+    }
+    const auto it = std::search(
+        haystack.begin(), haystack.end(),
+        needle.begin(), needle.end(),
+        [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b)); });
+    return it != haystack.end();
+}
+
+// Maps a role string to a product code. Returns an empty string when the role
+// does not match any known category, so the caller can keep its default.
+std::string resolve_product_code_from_role(const std::string& role)
+{
+    if (role.empty()) {
+        return {};
+    }
+
+    // A role may match several categories (e.g. "Fullstack"). Frontend is
+    // checked last so it wins on ambiguous matches, mirroring the original
+    // behaviour where the second `if` overwrote the first.
+    if (contains_ignore_case(role, "Frontend") || contains_ignore_case(role, "React")) {
+        return "FE";
+    }
+    if (contains_ignore_case(role, "Backend") || contains_ignore_case(role, "Java")) {
+        return "BE";
+    }
+    return {};
+}
+
+} // namespace
+
 /**
  * Обработка одной записи бэклога
  */
@@ -661,6 +700,12 @@ std::pair<int, int> process_backlog_entry(
     if (!entry.contains("tasks") || !entry["tasks"].is_array()) {
         LOG_WARN("Backlog entry has no 'tasks' array, skipping.");
         return { 0, 1 };
+    }
+    
+    // Derive the product code from the role, keeping the default ("CAD") when
+    // the role does not map to a known category.
+    if (const std::string role_code = resolve_product_code_from_role(role); !role_code.empty()) {
+        product_code = role_code;
     }
 
     // Обрабатываем каждую задачу
@@ -1135,6 +1180,12 @@ int handle_create_card(Http_client& client, const std::string& host, const std::
     if (parent_card_id > 0) {
         std::cout << "Parent card ID: " << parent_card_id << std::endl;
     }
+
+
+    if (const std::string role_code = resolve_product_code_from_role(role); !role_code.empty()) {
+        product_code = role_code;
+    }
+
 
     auto created_card = create_card_with_postprocessing(
         client, host, port, api_path, token, desired, parent_card_id, product_code, work_code, update_title);
