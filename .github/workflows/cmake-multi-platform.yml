@@ -23,22 +23,16 @@ jobs:
       #
       # To add more build types (Release, Debug, RelWithDebInfo, etc.) customize the build_type list.
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        build_type: [Release]
-        c_compiler: [clang, cl]
         include:
-          - os: windows-latest
-            c_compiler: cl
-            cpp_compiler: cl
           - os: ubuntu-latest
+            build_type: Release
             c_compiler: clang
             cpp_compiler: clang++
-        exclude:
-#          - os: windows-latest
-#            c_compiler: gcc
           - os: windows-latest
-            c_compiler: clang
-
+            build_type: Release
+            c_compiler: cl
+            cpp_compiler: cl
+        fail-fast: false
 
     env:
       BUILD_DIR: build
@@ -65,6 +59,15 @@ jobs:
         restore-keys: |
           ccache-${{ runner.os }}-
 
+    - name: Ensure Ninja on Linux (before configure)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build
+        echo "NINJA: $(which ninja || true)"
+        ninja --version || true
+    
     - name: Install Ninja on Linux
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get install -y ninja-build libgtest-dev libboost-system-dev libboost-program-options-dev libssl-dev libspdlog-dev libboost-all-dev
@@ -93,7 +96,7 @@ jobs:
     - name: Install Conan (all platforms)
       run: |
         python -m pip install --upgrade pip
-        python -m pip install --upgrade conan
+        python -m pip install --upgrade conan==2.2.**   # pick a known 2.x version you want to use
         conan --version
 
     - name: Ensure Conan profile (all platforms)
