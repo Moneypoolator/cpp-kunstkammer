@@ -90,8 +90,9 @@ jobs:
     - name: Conan install dependencies
       # Run Conan to install dependencies and generate CMake files (CMakeToolchain + CMakeDeps)
       run: |
+        conan --version
         # Use the workflow build output dir as Conan install folder so generated toolchain and files are placed there
-        conan install . -if ${{ steps.strings.outputs.build-output-dir }} --build=missing -s build_type=${{ matrix.build_type }} -g CMakeToolchain -g CMakeDeps
+        conan install . --output-folder "${{ steps.strings.outputs.build-output-dir }}" --build=missing -s build_type=${{ matrix.build_type }} -g CMakeToolchain -g CMakeDeps
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
