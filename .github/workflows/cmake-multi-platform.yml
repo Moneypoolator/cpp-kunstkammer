@@ -87,21 +87,36 @@ jobs:
       shell: bash
       run: |
         conan --version
-        # create default profile if missing (non-fatal if it exists)
-        conan profile new default --detect || true
-        conan profile show default
+        echo "Existing profiles:"
+        conan profile list || true
+    
+        # Try Conan 2 variant first, fall back to the simpler form if necessary
+        conan profile detect --name default || conan profile detect || true
+    
+        # Show the default profile (try both possible argument forms)
+        conan profile show --name default || conan profile show default || true
 
     - name: Conan profile detect (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
         conan --version
+        Write-Host "Existing profiles:"
+        try { conan profile list } catch { Write-Host "profile list failed" }
+    
+        # Try Conan 2 variant, then fallback
         try {
-          conan profile new default --detect
+          conan profile detect --name default
         } catch {
-          Write-Host "Default profile already exists or detect failed, continuing..."
+          try { conan profile detect } catch { Write-Host "profile detect failed, continuing..." }
         }
-        conan profile show default
+    
+        # Show the default profile (try both possible forms)
+        try {
+          conan profile show --name default
+        } catch {
+          try { conan profile show default } catch { Write-Host "profile show failed" }
+        }
 
     - name: Conan install dependencies
       # Run Conan to install dependencies and generate CMake files (CMakeToolchain + CMakeDeps)
