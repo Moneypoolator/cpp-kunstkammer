@@ -33,11 +33,11 @@ jobs:
           - os: ubuntu-latest
             c_compiler: clang
             cpp_compiler: clang++
-#        exclude:
+        exclude:
 #          - os: windows-latest
 #            c_compiler: gcc
-#          - os: windows-latest
-#            c_compiler: clang
+          - os: windows-latest
+            c_compiler: clang
 
 
     env:
@@ -119,22 +119,63 @@ jobs:
         }
 
     - name: Conan install dependencies
-      # Run Conan to install dependencies and generate CMake files (CMakeToolchain + CMakeDeps)
       run: |
         conan --version
+        echo "Conan install into: ${{ steps.strings.outputs.build-output-dir }}"
         conan install . --output-folder "${{ steps.strings.outputs.build-output-dir }}" --build=missing -s build_type=${{ matrix.build_type }} -g CMakeToolchain -g CMakeDeps
 
+    - name: Show generated Conan files (debug)
+      run: |
+        echo "Listing build dir:"
+        ls -la "${{ steps.strings.outputs.build-output-dir }}" || true
+        echo "Show conan_toolchain.cmake (if present):"
+        if [ -f "${{ steps.strings.outputs.build-output-dir }}/conan_toolchain.cmake" ]; then
+          echo "---- conan_toolchain.cmake ----"
+          sed -n '1,200p' "${{ steps.strings.outputs.build-output-dir }}/conan_toolchain.cmake"
+          echo "---- end ----"
+        else
+          echo "conan_toolchain.cmake not found"
+        fi
+      if: runner.os != 'Windows'
+      shell: bash
 
-    - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: >
-        cmake -B ${{ steps.strings.outputs.build-output-dir }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -DCMAKE_TOOLCHAIN_FILE=${{ steps.strings.outputs.build-output-dir }}/conan_toolchain.cmake
-        -S ${{ github.workspace }}
+    - name: Show generated Conan files (Windows debug)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Write-Host "Listing build dir:"
+        Get-ChildItem -Path "${{ steps.strings.outputs.build-output-dir }}" -Force -Recurse -ErrorAction SilentlyContinue
+        $toolchain = Join-Path "${{ steps.strings.outputs.build-output-dir }}" "conan_toolchain.cmake"
+        if (Test-Path $toolchain) {
+          Write-Host "---- conan_toolchain.cmake ----"
+          Get-Content $toolchain -TotalCount 200
+          Write-Host "---- end ----"
+        } else {
+          Write-Host "conan_toolchain.cmake not found"
+        }
+
+    - name: Configure CMake (Linux/macOS - use Ninja)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        cmake -B "${{ steps.strings.outputs.build-output-dir }}" \
+          -G Ninja \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DCMAKE_TOOLCHAIN_FILE="${{ steps.strings.outputs.build-output-dir }}/conan_toolchain.cmake" \
+          -S "${{ github.workspace }}"
+
+    - name: Configure CMake (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        cmake -B "${{ steps.strings.outputs.build-output-dir }}" `
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} `
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} `
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
+          -DCMAKE_TOOLCHAIN_FILE="${{ steps.strings.outputs.build-output-dir }}/conan_toolchain.cmake" `
+          -S "${{ github.workspace }}"
 
     - name: Build
       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
