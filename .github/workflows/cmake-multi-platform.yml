@@ -96,45 +96,37 @@ jobs:
         python -m pip install --upgrade conan
         conan --version
 
-    - name: Ensure Conan profiles (Linux/macOS)
+    - name: Ensure Conan profile (all platforms)
+      shell: bash
+      run: |
+        echo "Profiles:"
+        conan profile list || true
+        # robust detect (tries both variants)
+        conan profile detect --name default || conan profile detect || true
+        conan profile show --name default || conan profile show default || true
+
+    - name: Ensure Ninja on Linux (before configure)
       if: runner.os != 'Windows'
       shell: bash
       run: |
-        echo "Existing profiles:"
-        conan profile list || true
-        # Try to create / detect default profile (Conan 2 variants)
-        conan profile detect --name default || conan profile detect || true
-        conan profile list
-        # show default profile (try both forms)
-        conan profile show --name default || conan profile show default || true
-
-    - name: Ensure Conan profiles (Windows)
-      if: runner.os == 'Windows'
-      shell: pwsh
-      run: |
-        conan --version
-        Write-Host "Existing profiles:"
-        conan profile list
-        try {
-          conan profile detect --name default
-        } catch {
-          try { conan profile detect } catch { Write-Host "profile detect failed, continuing..." }
-        }
-        try { conan profile show --name default } catch { conan profile show default }
+        sudo apt-get update
+        sudo apt-get install -y ninja-build
+        which ninja || true
+        ninja --version || true
 
     - name: Conan install (generate CMakeToolchain + CMakeDeps)
+      working-directory: ${{ github.workspace }}
       shell: bash
       run: |
         set -e
         BUILD_DIR="${{ steps.strings.outputs.build-output-dir }}"
-        echo "Conan install into: $BUILD_DIR"
-        pwd
+        echo "PWD: $(pwd)"
+        echo "Listing repo root:"
         ls -la
-        # Use explicit profiles to avoid ambiguity in CI
+        echo "Conan install into: $BUILD_DIR"
         conan install . --output-folder "$BUILD_DIR" --build=missing -s build_type=${{ matrix.build_type }} -g CMakeToolchain -g CMakeDeps --profile:host=default --profile:build=default
-        echo "Install exit status: $?"
 
-    - name: Show generated Conan files (Linux/macOS)
+    - name: Show generated Conan files (debug)
       if: runner.os != 'Windows'
       shell: bash
       run: |
@@ -150,37 +142,6 @@ jobs:
         else
           echo "conan_toolchain.cmake not found in $BUILD_DIR"
         fi
-        echo "Check ninja:"
-        which ninja || true
-        ninja --version || true
-
-    - name: Show generated Conan files (Windows)
-      if: runner.os == 'Windows'
-      shell: pwsh
-      run: |
-        $BUILD_DIR = "${{ steps.strings.outputs.build-output-dir }}"
-        Write-Host "Listing build dir: $BUILD_DIR"
-        Get-ChildItem -Path $BUILD_DIR -Force -Recurse -ErrorAction SilentlyContinue | Select-Object -First 200
-        $toolchain = Join-Path $BUILD_DIR "conan_toolchain.cmake"
-        if (Test-Path $toolchain) {
-          Write-Host "---- conan_toolchain.cmake ----"
-          Get-Content $toolchain -TotalCount 200
-        } else {
-          Write-Host "conan_toolchain.cmake not found"
-        }
-        Write-Host "Check ninja:"
-        Get-Command ninja -ErrorAction SilentlyContinue
-        try { ninja --version } catch { Write-Host "ninja not found or failed" }
-
-    - name: Ensure Ninja on Linux
-      if: runner.os != 'Windows'
-      shell: bash
-      run: |
-        # ensure ninja is installed (sudo available on ubuntu images)
-        sudo apt-get update
-        sudo apt-get install -y ninja-build
-        which ninja
-        ninja --version
 
     - name: Configure CMake (Linux/macOS - use Ninja)
       if: runner.os != 'Windows'
@@ -206,7 +167,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
           -DCMAKE_TOOLCHAIN_FILE="$BUILD_DIR/conan_toolchain.cmake" `
           -S "${{ github.workspace }}"
-
+          
     - name: Build
       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
