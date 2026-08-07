@@ -96,7 +96,7 @@ jobs:
     - name: Install Conan (all platforms)
       run: |
         python -m pip install --upgrade pip
-        python -m pip install --upgrade conan==2.2.**   # pick a known 2.x version you want to use
+        python -m pip install --upgrade conan  #==2.2.**   # pick a known 2.x version you want to use
         conan --version
 
     - name: Ensure Conan profile (all platforms)
