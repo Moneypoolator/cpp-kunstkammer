@@ -82,17 +82,33 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install --upgrade conan
 
-    - name: Conan profile detect
+    - name: Conan profile detect (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
       run: |
-        # Detect a platform profile for Conan. Non-fatal if it already exists.
+        conan --version
+        # create default profile if missing (non-fatal if it exists)
         conan profile new default --detect || true
+        conan profile show default
+
+    - name: Conan profile detect (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        conan --version
+        try {
+          conan profile new default --detect
+        } catch {
+          Write-Host "Default profile already exists or detect failed, continuing..."
+        }
+        conan profile show default
 
     - name: Conan install dependencies
       # Run Conan to install dependencies and generate CMake files (CMakeToolchain + CMakeDeps)
       run: |
         conan --version
-        # Use the workflow build output dir as Conan install folder so generated toolchain and files are placed there
         conan install . --output-folder "${{ steps.strings.outputs.build-output-dir }}" --build=missing -s build_type=${{ matrix.build_type }} -g CMakeToolchain -g CMakeDeps
+
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
