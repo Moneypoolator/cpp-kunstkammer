@@ -32,7 +32,7 @@ jobs:
             build_type: Release
             c_compiler: cl
             cpp_compiler: cl
-        fail-fast: false
+#        fail-fast: false
 
     env:
       BUILD_DIR: build
