@@ -133,7 +133,7 @@ jobs:
           --build=missing \
           -s build_type=${{ matrix.build_type }} \
           -s compiler.cppstd=20 \
-          -o "boost/*:without_cobalt_io_ssl=True" \
+          -o "boost:without_cobalt_io_ssl=True" \
           --profile:host=default \
           --profile:build=default          
 
