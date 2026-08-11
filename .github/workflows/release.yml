@@ -1,0 +1,265 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+env:
+  BUILD_DIR: build
+  CTEST_OUTPUT_ON_FAILURE: "1"
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+
+          - os: windows-latest
+            platform: windows-x86_64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Ninja on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Install Conan
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade conan
+          conan --version
+
+      - name: Ensure Conan profile
+        shell: bash
+        run: |
+          conan profile detect --force || true
+          conan profile show || true
+
+      - name: Conan install
+        shell: bash
+        run: |
+          set -e
+
+          BUILD_DIR="${{ github.workspace }}/build"
+
+          cmake -E make_directory "$BUILD_DIR"
+
+          # Если вы уже понизили Boost до стабильной версии,
+          # строку с -o "boost/*:without_cobalt_io_ssl=True" можно убрать.
+          #
+          # Если Conan ругается на синтаксис boost/*, попробуйте:
+          # -o "boost:without_cobalt_io_ssl=True"
+          conan install . \
+            --output-folder "$BUILD_DIR" \
+            --build=missing \
+            -s build_type=Release \
+            -s compiler.cppstd=20 \
+            -o "boost/*:without_cobalt_io_ssl=True" \
+            --profile:host=default \
+            --profile:build=default
+
+      - name: Configure CMake on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+
+          BUILD_DIR="${{ github.workspace }}/build"
+
+          TOOLCHAIN_FILE="$BUILD_DIR/conan_toolchain.cmake"
+
+          if [ ! -f "$TOOLCHAIN_FILE" ]; then
+            TOOLCHAIN_FILE="$(find "$BUILD_DIR" -type f -name conan_toolchain.cmake | head -n1)"
+          fi
+
+          if [ -z "$TOOLCHAIN_FILE" ] || [ ! -f "$TOOLCHAIN_FILE" ]; then
+            echo "conan_toolchain.cmake not found" >&2
+            find "$BUILD_DIR" -maxdepth 6 -type f -name '*conan*' -print >&2 || true
+            exit 1
+          fi
+
+          echo "Using Conan toolchain: $TOOLCHAIN_FILE"
+
+          cmake -B "$BUILD_DIR" \
+            -S . \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE"
+
+      - name: Configure CMake on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $BUILD_DIR = "${{ github.workspace }}/build"
+
+          $TOOLCHAIN_FILE = Join-Path $BUILD_DIR "conan_toolchain.cmake"
+
+          if (-not (Test-Path $TOOLCHAIN_FILE)) {
+              $found = Get-ChildItem -Path $BUILD_DIR -Recurse -Filter conan_toolchain.cmake | Select-Object -First 1
+
+              if ($found) {
+                  $TOOLCHAIN_FILE = $found.FullName
+              }
+          }
+
+          if (-not (Test-Path $TOOLCHAIN_FILE)) {
+              Write-Host "conan_toolchain.cmake not found"
+              Get-ChildItem -Path $BUILD_DIR -Recurse -Include *conan* | Select-Object -First 200
+              throw "conan_toolchain.cmake not found"
+          }
+
+          Write-Host "Using Conan toolchain: $TOOLCHAIN_FILE"
+
+          cmake -B $BUILD_DIR `
+            -S . `
+            -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE"
+
+      - name: Build
+        shell: bash
+        run: |
+          cmake --build build --config Release --parallel 2
+
+      - name: Test
+        shell: bash
+        working-directory: build
+        run: |
+          ctest --build-config Release
+
+      - name: Package binary on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -e
+
+          VERSION="${TAG#v}"
+          PKG_NAME="kunstkammer-$VERSION-linux-x86_64"
+          PKG_DIR="release/$PKG_NAME"
+
+          mkdir -p "$PKG_DIR"
+          mkdir -p dist
+
+          EXE="$(find build -type f -name kunstkammer -executable | head -n1)"
+
+          if [ -z "$EXE" ]; then
+            echo "kunstkammer executable not found" >&2
+            find build -maxdepth 6 -type f | sed -n '1,200p' >&2
+            exit 1
+          fi
+
+          cp "$EXE" "$PKG_DIR/"
+
+          for f in config.json README.md LICENSE LOGGING_README.md; do
+            if [ -f "$f" ]; then
+              cp "$f" "$PKG_DIR/"
+            fi
+          done
+
+          tar -czf "dist/$PKG_NAME.tar.gz" -C release "$PKG_NAME"
+
+      - name: Package binary on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $VERSION = $env:TAG -replace '^v',''
+          $PKG_NAME = "kunstkammer-$VERSION-windows-x86_64"
+          $PKG_DIR = Join-Path "release" $PKG_NAME
+
+          New-Item -ItemType Directory -Force -Path $PKG_DIR | Out-Null
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          $exe = Get-ChildItem -Path build -Recurse -Filter kunstkammer.exe | Select-Object -First 1
+
+          if (-not $exe) {
+              Write-Host "kunstkammer.exe not found"
+              Get-ChildItem -Path build -Recurse | Select-Object -First 200
+              throw "kunstkammer.exe not found"
+          }
+
+          Copy-Item $exe.FullName -Destination $PKG_DIR
+
+          @("config.json", "README.md", "LICENSE", "LOGGING_README.md") | ForEach-Object {
+              if (Test-Path $_) {
+                  Copy-Item $_ -Destination $PKG_DIR
+              }
+          }
+
+          Compress-Archive -Path $PKG_DIR -DestinationPath (Join-Path "dist" "$PKG_NAME.zip")
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kunstkammer-${{ github.ref_name }}-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: kunstkammer-${{ github.ref_name }}-*
+          path: dist
+          merge-multiple: true
+
+      - name: Check assets
+        shell: bash
+        run: |
+          set -e
+
+          echo "Release assets:"
+          ls -R dist
+
+          if ! find dist -type f | grep -q .; then
+            echo "No release assets found"
+            exit 1
+          fi
+
+      - name: Create or update GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -e
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, uploading assets"
+            gh release upload "$TAG" dist/* --clobber
+          else
+            echo "Creating release $TAG"
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              dist/*
+          fi
