@@ -128,9 +128,13 @@ jobs:
         echo "Listing repo root:"
         ls -la
         echo "Conan install into: $BUILD_DIR"
-        conan install . --output-folder "$BUILD_DIR" --build=missing \
+        conan install . \
+          --output-folder "$BUILD_DIR" \
+          --build=missing \
           -s build_type=${{ matrix.build_type }} \
-          --profile:host=default --profile:build=default
+          -s compiler.cppstd=20 \
+          --profile:host=default \
+          --profile:build=default          
 
     - name: Show generated Conan files (debug)
       if: runner.os != 'Windows'
