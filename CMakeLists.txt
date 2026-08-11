@@ -10,7 +10,7 @@ if(POLICY CMP0167)
 endif()
 
 # Поиск зависимостей
-find_package(Boost REQUIRED COMPONENTS program_options system)
+find_package(Boost REQUIRED) # COMPONENTS program_options system)
 find_package(OpenSSL REQUIRED)
 find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
@@ -98,7 +98,7 @@ set(LIB_SOURCES
 add_library(kunstkammer_lib ${LIB_SOURCES})
 
 # Link spdlog to the library since it contains logger implementation
-target_link_libraries(kunstkammer_lib PRIVATE spdlog::spdlog)
+#target_link_libraries(kunstkammer_lib PRIVATE spdlog::spdlog)
 
 add_executable(kunstkammer src/main.cpp)
 
@@ -115,6 +115,16 @@ target_include_directories(kunstkammer_lib PUBLIC
     ${Boost_INCLUDE_DIRS}
 )
 
+target_link_libraries(kunstkammer_lib
+    PUBLIC
+        Boost::program_options
+        Boost::boost
+        #Boost::system
+        OpenSSL::SSL
+        OpenSSL::Crypto
+        spdlog::spdlog
+)
+
 # Линковка
 # target_link_libraries(kunstkammer PRIVATE
 #     Boost::program_options
@@ -124,29 +134,38 @@ target_include_directories(kunstkammer_lib PUBLIC
 #     kunstkammer_lib
 # )
 
+# target_link_libraries(kunstkammer PRIVATE
+#     boost::boost 
+#     openssl::openssl
+#     gtest::gtest
+#     spdlog::spdlog
+#     kunstkammer_lib
+# )
+
 target_link_libraries(kunstkammer PRIVATE
-    boost::boost 
-    openssl::openssl
-    gtest::gtest
-    spdlog::spdlog
     kunstkammer_lib
 )
 
 # Дополнительные настройки для Release сборки
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     message(STATUS "Release build: optimizing for performance")
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        # Дополнительные оптимизации для GCC/Clang
-        target_compile_options(kunstkammer PRIVATE -fomit-frame-pointer -funroll-loops)
+        target_compile_options(kunstkammer PRIVATE
+            -fomit-frame-pointer
+            -funroll-loops
+        )
+
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            target_compile_options(kunstkammer PRIVATE -fno-semantic-interposition)
+            target_compile_options(kunstkammer PRIVATE
+                -fno-semantic-interposition
+            )
         endif()
+
+        target_link_options(kunstkammer PRIVATE
+            -s
+        )
     endif()
-    
-    # Установка свойств для уменьшения размера бинарника
-    set_target_properties(kunstkammer PROPERTIES
-        LINK_FLAGS "-s"  # Удаление символов (для GCC)
-    )
 endif()
 
 # Дополнительные настройки для Debug сборки
@@ -212,8 +231,6 @@ target_include_directories(connection_pool_test PRIVATE
 target_link_libraries(connection_pool_test PRIVATE
     GTest::gtest_main
     kunstkammer_lib
-    OpenSSL::SSL
-    OpenSSL::Crypto
 )
 
 # Добавление теста

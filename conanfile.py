@@ -18,11 +18,15 @@ class KunstkammerRecipe(ConanFile):
         self.requires("gtest/1.17.0")
         self.requires("spdlog/1.17.0")
 
-    def build_requirements(self):
-        self.tool_requires("cmake/4.3.2")
+    # def build_requirements(self):
+    #     self.tool_requires("cmake/4.3.2")
 
     def layout(self):
-        cmake_layout(self)
+        # Для текущего CI: генераторы кладём прямо в output-folder
+        self.folders.generators = "."
+
+        # cmake_layout(self)
+
         # # We make the assumption that if the compiler is msvc the
         # # CMake generator is multi-config
         # multi = True if self.settings.get_safe("compiler") == "msvc" else False

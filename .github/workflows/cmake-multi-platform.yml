@@ -26,13 +26,12 @@ jobs:
         include:
           - os: ubuntu-latest
             build_type: Release
-            c_compiler: clang
-            cpp_compiler: clang++
+            # c_compiler: clang
+            # cpp_compiler: clang++
           - os: windows-latest
             build_type: Release
-            c_compiler: cl
-            cpp_compiler: cl
-#        fail-fast: false
+            # c_compiler: cl
+            # cpp_compiler: cl
 
     env:
       BUILD_DIR: build
@@ -70,7 +69,9 @@ jobs:
     
     - name: Install Ninja on Linux
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y ninja-build libgtest-dev libboost-system-dev libboost-program-options-dev libssl-dev libspdlog-dev libboost-all-dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build
 
     - name: Install Ninja on macOS
       if: runner.os == 'macOS'
@@ -127,7 +128,9 @@ jobs:
         echo "Listing repo root:"
         ls -la
         echo "Conan install into: $BUILD_DIR"
-        conan install . --output-folder "$BUILD_DIR" --build=missing -s build_type=${{ matrix.build_type }} -g CMakeToolchain -g CMakeDeps --profile:host=default --profile:build=default
+        conan install . --output-folder "$BUILD_DIR" --build=missing \
+          -s build_type=${{ matrix.build_type }} \
+          --profile:host=default --profile:build=default
 
     - name: Show generated Conan files (debug)
       if: runner.os != 'Windows'
