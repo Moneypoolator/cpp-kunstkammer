@@ -13,7 +13,7 @@ class KunstkammerRecipe(ConanFile):
     generators = "CMakeToolchain", "CMakeDeps"
 
     def requirements(self):
-        self.requires("boost/1.91.0")
+        self.requires("boost/1.86.0")
         self.requires("openssl/3.6.2")
         self.requires("gtest/1.17.0")
         self.requires("spdlog/1.17.0")
